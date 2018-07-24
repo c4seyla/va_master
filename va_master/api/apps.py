@@ -97,7 +97,7 @@ def add_openvpn_user(username):
     """Creates a new openvpn user. """
 
     success = call_master_cmd('openvpn.add_user', kwarg = {'username' : username})
-    if success:
+    if not success:
         raise Exception('Adding an openvpn user returned with an error. ')
     raise tornado.gen.Return({'success' : True, 'data' : None, 'message' : 'User added successfuly. '})
 
