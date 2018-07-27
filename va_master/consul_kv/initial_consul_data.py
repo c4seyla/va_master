@@ -1,6 +1,7 @@
 initial_consul_data = {
     "update" : {
         "providers/va_standalone_servers" : {"username": "admin", "servers": [], "sec_groups": [], "images": [], "password": "admin", "ip_address": "127.0.0.1", "networks": [], "sizes": [], "driver_name": "generic_driver", "location": "", "defaults": {}, "provider_name": "va_standalone_servers"},
+        "users" : [],
     },
     "overwrite" : {
         "va_flavours" : {"va-small": {"num_cpus": 1, "max_memory": 1048576, "vol_capacity": 5, "memory": 1048576}, "debian": {"num_cpus": 1, "max_memory": 1048576, "vol_capacity": 5, "memory": 1048576}},

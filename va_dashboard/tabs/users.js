@@ -171,7 +171,7 @@ class Users extends Component {
             <div style={this.props.style} className="card">
                 {modal}
                 <div className="card-body">
-                    <Table className="table striped" columns={['Username', 'Groups', 'Functions', 'Actions']} itemsPerPage={10} pageButtonLimit={10} noDataText="No matching records found." sortable={true} filterable={['Username', 'Groups', 'Functions', 'Actions']} btnName="Add user" btnClick={this.openModal} title="Dashboard Users" filterClassName="form-control" filterPlaceholder="Filter">
+                    <Table className="table striped" columns={['Username', 'Groups', 'Functions', 'Actions']} itemsPerPage={10} pageButtonLimit={10} noDataText="No matching records found." sortable={true} filterable={['Username', 'Groups', 'Functions', 'Actions']} buttons={[{name: "Add user", onClick: this.openModal, icon: 'glyphicon glyphicon-plus'}]} btnClick={this.openModal} title="Dashboard Users" filterClassName="form-control" filterPlaceholder="Filter">
                         {user_rows}
                     </Table>
                 </div>
@@ -283,7 +283,7 @@ class Groups extends Component {
             <div style={this.props.style} className="card">
                 {modal}
                 <div className="card-body">
-                    <Table className="table striped" columns={['Group name', 'Functions', 'Actions']} itemsPerPage={10} pageButtonLimit={10} noDataText="No matching records found." sortable={true} filterable={['Group name', 'Functions', 'Actions']} btnName="Add group" btnClick={this.openModal} title="Dashboard Groups" filterClassName="form-control" filterPlaceholder="Filter">
+                    <Table className="table striped" columns={['Group name', 'Functions', 'Actions']} itemsPerPage={10} pageButtonLimit={10} noDataText="No matching records found." sortable={true} filterable={['Group name', 'Functions', 'Actions']} buttons={[{name: "Add group", onClick: this.openModal, icon: 'glyphicon glyphicon-plus'}]} btnClick={this.openModal} title="Dashboard Groups" filterClassName="form-control" filterPlaceholder="Filter">
                         {group_rows}
                     </Table>
                 </div>

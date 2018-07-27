@@ -129,7 +129,7 @@ class ApiHandler(tornado.web.RequestHandler):
                     self.json({'success' : False, 'message' : 'User ' + user['username'] + ' tried to access ' + path + ' but it is not in their allowed functions : ' + str(user_functions)})
                     auth_successful = False
 
-#                self.json({'success' : False, 'message' : 'User does not have appropriate privileges. ', 'data' : {}})
+                self.json({'success' : False, 'message' : 'User does not have appropriate privileges. ', 'data' : {}})
         except Exception as e: 
             import traceback
             traceback.print_exc()

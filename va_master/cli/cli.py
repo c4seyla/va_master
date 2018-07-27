@@ -292,14 +292,15 @@ def handle_add_module(args):
         
     
 def handle_new_user(args):
-    from .api import login
+    from va_master.api import login
     cli_config = config.Config()
 
     store = cli_config.datastore
+    datastore_handler = DatastoreHandler(store)
 
     run_sync = tornado.ioloop.IOLoop.instance().run_sync
     user_type = 'user' if args.get('ordinary_user') else 'admin'
-    create_user = functools.partial(login.create_user, store, args['username'], args['password'], user_type)
+    create_user = functools.partial(login.create_user, datastore_handler, args['username'], args['password'], user_type)
     create_user_run = run_sync(create_user)
    
 def handle_test_api(args):
