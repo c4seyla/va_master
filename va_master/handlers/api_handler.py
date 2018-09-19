@@ -119,6 +119,7 @@ class ApiHandler(tornado.web.RequestHandler):
             user = yield get_current_user(self)
             if not user: 
                 self.json({'success' : False, 'message' : 'User not authenticated properly. ', 'data' : {}})
+
                 auth_successful = False
             elif user['type'] == 'user' : 
                 user_functions = yield self.datastore_handler.get_user_functions(user.get('username'))
@@ -232,6 +233,8 @@ class ApiHandler(tornado.web.RequestHandler):
             if api_func['function'] not in [user_login]:
                 auth_successful = yield self.handle_user_auth(path)
                 if not auth_successful: 
+                    self.config.logger.error("Authentication not successful for " + api_func['function'].func_name)
+
                     raise tornado.gen.Return({"success" : False, "message" : "Authentication not successful for " + api_func['function'].func_name, "data" : {}})
 
             result = yield self.handle_func(api_func, data)
