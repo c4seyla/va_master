@@ -13,18 +13,26 @@ var COLORS = ["#de4040", "#de4040", "#de4040", "#de4040", "#ffa726", "#777777", 
 class Log extends Component {
     constructor (props) {
         super(props);
+        let checked;
+        switch (props.params.type) {
+          case 'info':
+            checked = ["notice", "info", "debug"]
+            break;
+          case 'warning':
+            checked = ["warning"]
+            break;
+          case 'critical':
+            checked = ["emerg", "alert", "crit", "err"]
+            break;
+          default:
+            checked = Object.assign([], SEV);
+        }
         this.state = {
-            logs: [],
-            newLogs: 0,
-            value: "",
-            checked: Object.assign([], SEV),
-            status: 1,
-            statuses: ['start', 'stop'],
-            hosts: [],
-            selected_hosts: []
+            filterBy: "",
+            checked,
+            status: 1
         };
-        this.initLog = this.initLog.bind(this);
-        this.close_socket = this.close_socket.bind(this);
+        this.statuses = ['start', 'stop'];
         this.filter = this.filter.bind(this);
         this.updateLogs = this.updateLogs.bind(this);
         this.changeObservableStatus = this.changeObservableStatus.bind(this);
@@ -32,46 +40,18 @@ class Log extends Component {
         this.changeStatus = this.changeStatus.bind(this);
         this.onChangeHost = this.onChangeHost.bind(this);
     }
-    initLog() {
-        var host = window.location.host;
-        if(host.indexOf(":") == 0){
-            host += ":80";
-        }
-        var protocol =  window.location.protocol === "https:" ? "wss" : "ws";
-        this.ws = new WebSocket(`${protocol}://${host}/log`);
-        this.ws.onmessage = evt => {
-            var data = JSON.parse(evt.data);
-            var logs = [], hosts = [];
-            if(data.type === "connected"){
-                this.updateLogs();
-            }else if(data.type === "update"){
-                let newLog = data.message, host = newLog.host; 
-                hosts = this.state.hosts;
-                logs = this.state.logs.concat([newLog]);
-                let h = hosts.map((host) => host.value);
-                if(h.indexOf(host) === -1)
-                    hosts.push({value: host, label: host});
-                this.setState({logs, hosts, selected_hosts: hosts, newLogs: this.state.newLogs+1});
-            }
-            else if(data.type === "init"){
-                logs = data.logs, hosts = data.hosts;
-                this.setState({logs, hosts, selected_hosts: hosts});
-            }
-        };
-        this.ws.onerror = evt => {
-            this.ws.close();
-            this.props.dispatch({type: 'SHOW_ALERT', msg: "Socket error."});
-        };
-    }
+
     componentDidMount() {
-        if(!this.props.alert.show)
-            this.initLog();
+      this.props.dispatch({type: 'GET_LOGS'});
     }
-    close_socket() {
-        this.ws.close();
+
+    componentWillUnmount() {
+      this.changeObservableStatus('stop')
+      this.props.dispatch({type: 'RESET_LOGS'});
     }
+
     filter(evt) {
-        this.setState({value: evt.target.value});
+        this.setState({filterBy: evt.target.value});
     }
     updateLogs(startDate, endDate){
         var msg = startDate ? {
@@ -79,14 +59,14 @@ class Log extends Component {
             from_date: startDate,
             to_date: endDate
         } : {type: "get_messages"};
-        this.ws.send(JSON.stringify(msg));
+        this.props.dispatch({type: 'SEND_MESSAGE', msg});
     }
     changeObservableStatus(value){
         var msg = {
             type: "observer_status",
             status: value
         };
-        this.ws.send(JSON.stringify(msg));
+        this.props.dispatch({type: 'SEND_MESSAGE', msg});
     }
     changeTable(checked){
         this.setState({checked: checked});
@@ -94,19 +74,19 @@ class Log extends Component {
     changeStatus (e){
         var value = e.target.value;
         this.setState({status: 1 - value});
-        this.changeObservableStatus(this.state.statuses[value]);
+        this.changeObservableStatus(this.statuses[value]);
     }
     onChangeHost(value) {
-        this.setState({ selected_hosts: value });
+        this.props.dispatch({ type: 'SELECT_HOST', selected_hosts: value })
     }
     render () {
         var counters = {};
         for(var i=0; i<SEV.length; i++)
             counters[SEV[i]] = 0;
-        var hosts = this.state.selected_hosts.map(function(h){
+        var hosts = this.props.selected_hosts.map(function(h){
             return h.value;
         });
-        var logs = this.state.logs.filter(l => {
+        var logs = this.props.logs.filter(l => {
             if(SEV.indexOf(l.severity) > -1)
                 counters[l.severity]++;
             if(this.state.checked.indexOf(l.severity) > -1 && hosts.indexOf(l.host) > -1)
@@ -118,15 +98,15 @@ class Log extends Component {
         return (
             <div id="log-page">
                 <div>
-                    <Bootstrap.Button onClick={this.changeStatus} value={status} style={{marginRight: '20px', textTransform: 'capitalize'}}>{this.state.statuses[status]} Live</Bootstrap.Button>
+                    <Bootstrap.Button onClick={this.changeStatus} value={status} style={{marginRight: '20px', textTransform: 'capitalize'}}>{this.statuses[status]} Live</Bootstrap.Button>
                     <DateRange updateLogs={this.updateLogs} state={status} />
-                    <Select name="hosts" options={this.state.hosts} multi={true} placeholder="Filter hosts" value={this.state.selected_hosts} onChange={this.onChangeHost} style={{marginLeft: '20px', width: '500px'}} />
+                    <Select name="hosts" options={this.props.hosts} multi={true} placeholder="Filter hosts" value={this.props.selected_hosts} onChange={this.onChangeHost} style={{marginLeft: '20px', width: '500px'}} />
                 </div>
                 <div id='filter-log'>
-                    <FilterBtns changeTable={this.changeTable} counters={counters} />
+                    <FilterBtns changeTable={this.changeTable} values={this.state.checked} counters={counters} />
                     <input type='text' placeholder='Filter' value={this.state.value} onChange={this.filter} className='form-control'/>
                 </div>
-                <LogTable logs={logs} filterBy={this.state.value} newLogsNum={this.state.newLogs} />
+                <LogTable logs={logs} filterBy={this.state.filterBy} newLogsNum={this.props.newLogs} />
             </div>
 	);
     }
@@ -174,14 +154,10 @@ class DateRange extends Component {
 class FilterBtns extends Component {
     constructor (props) {
         super(props);
-        this.state = {
-            values: Object.assign([], SEV)
-        };
         this.onChange = this.onChange.bind(this);
     }
 
 	onChange(values) {
-        this.setState({values: values});
         this.props.changeTable(values);
 	}
 
@@ -191,7 +167,7 @@ class FilterBtns extends Component {
 			return <Bootstrap.ToggleButton key={val} value={val}>{val} <span className="badge" style={{backgroundColor: COLORS[i]}}>{me.props.counters[val]}</span></Bootstrap.ToggleButton>;
 		});
 		return (
-            <Bootstrap.ToggleButtonGroup type="checkbox" value={this.state.values} onChange={this.onChange}>
+            <Bootstrap.ToggleButtonGroup type="checkbox" value={this.props.values} onChange={this.onChange}>
                 {btns}
             </Bootstrap.ToggleButtonGroup>
 		);
@@ -262,6 +238,5 @@ class LogTable extends Component {
 
 
 module.exports = connect(function(state){
-    return {auth: state.auth, alert: state.alert};
+    return {auth: state.auth, alert: state.alert, ...state.logs, ...state.hosts};
 })(Log);
-

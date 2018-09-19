@@ -3,7 +3,24 @@ import {connect} from 'react-redux';
 import {Chart, Doughnut, Bar, defaults} from "react-chartjs-2";
 import Graph from'react-graph-vis';
 var Network = require('../network');
-import {getRandomColors, getSpinner, getTimestamp} from './util'; 
+import {getRandomColors, getSpinner, getTimestamp} from './util';
+import {hashHistory} from 'react-router';
+
+const LOGS = [
+  { color: 'rgb(150, 230, 118)', iconColor: '#dff0d8', key: 'info_logs', icon: 'fa fa-info-circle', value: 135, title: 'Total Info Logs', type: 'info'},
+  { color: 'rgb(249, 196, 98)', iconColor: '#ffedcc', key: 'warning_logs', icon: 'fa fa-exclamation-circle', value: 20, title: 'Total Warning Logs', type: 'warning'},
+  { color: 'rgb(242, 140, 140)', iconColor: '#f2dede', key: 'critical_logs', icon: 'fa fa-times-circle ', value: 12, title: 'Total Critical Logs', type: 'critical'}
+];
+const SERVICES = [
+  { color: 'rgb(150, 230, 118)', iconColor: '#dff0d8', key: 'passing_services', icon: 'fa fa-info-circle', value: 135, title: 'Total Passing Services'},
+  { color: 'rgb(249, 196, 98)', iconColor: '#ffedcc', key: 'warning_services', icon: 'fa fa-exclamation-circle', value: 30, title: 'Total Warning Services'},
+  { color: 'rgb(242, 140, 140)', iconColor: '#f2dede', key: 'critical_services', icon: 'fa fa-times-circle ', value: 23, title: 'Total Critical Services'}
+]
+// const SERVICES = [
+//   { color: '#dff0d8', iconColor: 'rgb(150, 230, 118)', icon: 'fa fa-info-circle', value: 135, title: 'Total Passing Services'},
+//   { color: '#ffedcc', iconColor: 'rgb(249, 196, 98)', icon: 'fa fa-exclamation-circle', value: 30, title: 'Total Warning Services'},
+//   { color: '#f2dede', iconColor: 'rgb(242, 140, 140)', icon: 'fa fa-times-circle ', value: 23, title: 'Total Critical Services'}
+// ]
 
 Chart.defaults.global.defaultFontFamily = 'Ubuntu';
 Chart.pluginService.register({
@@ -11,7 +28,7 @@ Chart.pluginService.register({
         if(chart.config.type === "doughnut"){
             let width = chart.chart.width,
                 height = chart.chart.height,
-                ctx = chart.chart.ctx, 
+                ctx = chart.chart.ctx,
                 text, textX, textY;
 
             ctx.restore();
@@ -67,56 +84,48 @@ class Overview extends Component {
     constructor (props) {
         super(props)
         defaults.global.legend.display = false;
-        this.state = { providers: {}, loading: true };
-        this.initLog = this.initLog.bind(this);
+        this.state = {
+          providers: {},
+          loading: true,
+          stats: {
+            critical_logs: 0,
+            critical_services: 0,
+            info_logs: 0,
+            passing_services: 0,
+            warning_logs: 0,
+            warning_services: 0
+          },
+        };
         this.getProviders = this.getProviders.bind(this);
     }
-    initLog() {
-        var provider = window.location.host;
-        if(provider.indexOf(":") == 0){
-            provider += ":80";
-        }
-        var protocol =  window.location.protocol === "https:" ? "wss" : "ws";
-        this.ws = new WebSocket(protocol +"://"+ provider +"/log");
-        let today = new Date();
-        var me = this;
-        this.ws.onmessage = function (evt) {
-            var data = JSON.parse(evt.data);
-            if(data.type === "connected")
-                me.ws.send(JSON.stringify({type: "get_messages", from_date: getTimestamp(today, 3600), to_date: today.getTime()}));
-            if(data.type === "update")
-                me.props.dispatch({type: 'UDDATE_LOGS', logs: data.message});
-            else if(data.type === "init")
-                me.props.dispatch({type: 'INIT_LOGS', logs: data.logs.reverse()});
-        };
-        this.ws.onerror = function(evt){
-            me.ws.close();
-            me.props.dispatch({type: 'SHOW_ALERT', msg: "Socket error."});
-        };
-    }
     componentDidMount() {
-        this.initLog();
         this.getProviders();
     }
     getProviders(){
         var data = {providers: [], sort_by_location: true};
         var me = this;
-        Network.post('/api/providers/info', this.props.auth.token, data).done(function(data) {
-            me.setState({providers: data, loading: false});
-        }).fail(function (msg) {
+        // Network.post('/api/providers/info', this.props.auth.token, data).done(function(data) {
+        //     me.setState({providers: data, loading: false});
+        // }).fail(function (msg) {
+        //     me.props.dispatch({type: 'SHOW_ALERT', msg: msg});
+        // });
+        var n1 = Network.post('/api/providers/info', this.props.auth.token, data).fail(function (msg) {
             me.props.dispatch({type: 'SHOW_ALERT', msg: msg});
         });
-    }
-    componentWillUnmount() {
-        this.ws.close();
-        this.props.dispatch({type: 'RESET_LOGS'});
+        var n2 = Network.get('/api/panels/get_services_and_logs', this.props.auth.token, {}).fail(function (msg) {
+            me.props.dispatch({type: 'SHOW_ALERT', msg: msg});
+        });
+        $.when( n1, n2 ).done(function ( resp1, resp2 ) {
+          console.log("get_services_and_logs", resp2);
+          me.setState({providers: resp1, loading: false, stats: resp2});
+        });
     }
     render() {
         var DiagramRedux = connect(function(state){
             return {auth: state.auth, sidebar: state.sidebar};
         })(Diagram);
         var LogRedux = connect(function(state){
-            return {auth: state.auth, logs: state.logs};
+            return {auth: state.auth};
         })(Log);
         var diagram = {}, provider_rows = [];
         for(let loc in this.state.providers) {
@@ -146,7 +155,7 @@ class Overview extends Component {
                     {this.state.loading && getSpinner({top: '30%'})}
                     {provider_redux}
                 </div>
-                <LogRedux />
+                <LogRedux {... this.state.stats} />
             </div>);
     }
 }
@@ -155,7 +164,7 @@ const Diagram = (props) => {
     const graphOptions = {
         layout: {
             hierarchical: {
-                direction: "UD", 
+                direction: "UD",
                 sortMethod: "directed",
                 nodeSpacing: 120,
                 levelSeparation: 50
@@ -310,7 +319,7 @@ class ProviderRows extends Component {
 
 const DoughnutComponent = (props) => {
     const chartOptions = {
-            maintainAspectRatio: false, 
+            maintainAspectRatio: false,
             title: {
                 display: true,
                 text: props.title
@@ -335,160 +344,62 @@ const DoughnutComponent = (props) => {
     );
 }
 
+const styles = {
+  tile: {
+    flex: 1,
+    padding: '10px 5px',
+    margin: '0 10px',
+    textAlign: 'center',
+    cursor: 'pointer',
+    // color: '#fff'
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+    borderLeftWidth: 3,
+    borderLeftStyle: 'solid'
+  },
+  icon: {
+    fontSize: '18px',
+    marginBottom: '5px'
+  },
+  value: {
+    marginTop: '5px',
+    fontSize: '20px',
+    fontWeight: 700,
+    lineHeight: 1.2
+  }
+}
+
 const Log = (props) => {
-    var category = ['info', 'warning', 'danger'];
-    var times = [], currentDate = new Date();
-    var prevHourTs = currentDate.setHours(currentDate.getHours()-1);
-    var logs = props.logs;
-    var datasets = [{
-        label: 'info',
-        data: [],
-        backgroundColor: "#31708f",
-        borderColor: "#31708f"
-    }, {
-        label: 'warning',
-        data: [],
-        backgroundColor: "#ffa726",
-        borderColor: "#ffa726"
-    }, {
-        label: 'danger',
-        data: [],
-        backgroundColor: "#a94442",
-        borderColor: "#a94442"
-    }];
-    if(logs.length > 0){
-        var prev_log = logs[0];
-    }
-    var logs_limit = 3, brojac=0, log_rows = [];
-    for(var i=0; i<logs.length; i++){
-        var log = logs[i];
-        var logClass = log.severity == "warning" ? "text-warning" : (log.severity == "err" || log.severity == "critical" || log.severity == "emergency") ? "text-danger" : "text-info";
-        var timestamp = new Date(log.timestamp);
-        if(timestamp.getTime() > prevHourTs){
-            var logLabel = logClass.split('-')[1];
-            var prevTimestamp = new Date(prev_log.timestamp);
-            // groups logs with same hh:mm for the graph
-            if(i > 0 && timestamp.getHours() == prevTimestamp.getHours() && timestamp.getMinutes() == prevTimestamp.getMinutes()){
-                var index = category.indexOf(logLabel);
-                datasets[index].data[datasets[index].data.length - 1] += 1;
-            }else{
-                times.push(timestamp);
-                for(var j=0; j<category.length; j++){
-                    if(category[j] == logLabel){
-                        datasets[j].data.push(1);
-                    }else{
-                        datasets[j].data.push(0);
-                    }
-                }
-            }
-            if(i > 0){
-                prev_log = log;
-            }
-        }
-        var message = log.message;
-        if(brojac < logs_limit){
-            var hour = timestamp.getHours();
-            var min = timestamp.getMinutes();
-            var sec = timestamp.getSeconds();
-            try {
-                message = JSON.parse(message);
-                var msg = "";
-                for(var key in message){
-                    if(typeof message[key] === 'object'){
-                        msg += message[key].method + " ";
-                    }else{
-                        msg += message[key] + " ";
-                    }
-                }
-                message = timestamp.toISOString().slice(0, 10) + " " + hour + ":" + min + ":" + sec + ", " + message.user + ", " + log.provider + ", " + log.severity + ", " + message.path + ", " + msg;
-            } catch(err) { console.log('Log parsing error'); }
-            log_rows.push (
-                <div key={i} className={"logs " + logClass}>{message}</div>
-            );
-        }
-        brojac++;
-    }
     return (
-        <div className="log-block card panel-default custom-panel" style={{marginBottom: '0px'}}>
-            <div className="panel-heading">Logs</div>
-            <div className="panel-body">
-                <LogChart datasets={datasets} labels={times} minDate={currentDate} />
-                {log_rows}
-            </div>
+        <div className="stats-block">
+          <div>
+          {
+            LOGS.map(l => (
+              <div onClick={ () => hashHistory.push('/log/' + l.type) } key={l.title} className="tile" style={{borderLeftColor: l.color}}>
+                <i className={l.icon + ' tile-icon'} style={{color: l.color}} />
+                <div style={styles.value}>{props[l.key]}</div>
+                <small>{l.title}</small>
+              </div>
+            ))
+          }
+          </div>
+          <div style={{marginTop: 20}}>
+          {
+            SERVICES.map(l => (
+              <div key={l.title} className="tile" style={{borderLeftColor: l.color}}>
+                <i className={l.icon + ' tile-icon'} style={{color: l.color}} />
+                <div style={styles.value}>{props[l.key]}</div>
+                <small>{l.title}</small>
+              </div>
+            ))
+          }
+          </div>
         </div>
     );
 }
 
-class LogChart extends Component {
-    constructor(props) {
-        super(props);
-        var maxDate = new Date();
-        var maxDateTs = maxDate.setMinutes(maxDate.getMinutes() + 1);
-        this.state = {chartOptions: {
-            maintainAspectRatio: false,
-            responsive: true,
-            scales: {
-                xAxes: [{
-                    type: 'time',
-                    stacked: true,
-                    display: false,
-                    //categoryPercentage: 1.0,
-                    //barPercentage: 1.0,
-                    time: {
-                        displayFormats: {
-                            minute: 'HH:mm',
-                            hour: 'HH:mm',
-                            second: 'HH:mm:ss'
-                        },
-                        tooltipFormat: 'YYYY-MM-DD HH:mm',
-                        unit: 'minute',
-                        unitStepSize: 0.5,
-                        min: this.props.minDate,
-                        max: maxDateTs
-                    },
-                    gridLines: {
-                        display:false
-                    }
-                }],
-                yAxes: [{
-                    display: false,
-                    stacked: true,
-                    gridLines: {
-                        display:false
-                    }
-                }]
-            }
-        }, chartData: {
-            labels: props.labels,
-            datasets: props.datasets
-        }};
-    }
-    componentDidMount() {
-        var me = this;
-        this.intervalId = setInterval(function(){
-            var chartOptions = me.state.chartOptions;
-            var mindate = new Date(chartOptions.scales.xAxes[0].time.min);
-            var maxdate = new Date(chartOptions.scales.xAxes[0].time.max);
-            mindate.setMinutes(mindate.getMinutes() + 1);
-            maxdate.setMinutes(maxdate.getMinutes() + 1);
-            chartOptions.scales.xAxes[0].time.min = mindate;
-            chartOptions.scales.xAxes[0].time.max = maxdate;
-            me.setState({chartOptions: chartOptions});
-        }, 60000);
-    }
-    componentWillUnmount() {
-        this.intervalId && clearInterval(this.intervalId);
-        this.intervalId = false;
-    }
-    render() {
-        return (
-            <div className="log-chart">
-                <Bar data={this.state.chartData} options={this.state.chartOptions} redraw />
-            </div>
-        );
-    }
-}
-
 module.exports = connect(function(state) {
     return {auth: state.auth};
-})(Overview); 
+})(Overview);

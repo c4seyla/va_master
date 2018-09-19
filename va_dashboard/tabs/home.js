@@ -2,8 +2,14 @@ import React, { Component } from 'react';
 import {Router, Link, IndexLink, hashHistory} from 'react-router';
 var Bootstrap = require('react-bootstrap');
 import {connect} from 'react-redux';
+var moment = require('moment');
+// import { findDOMNode } from 'react-dom';
 
 var Network = require('../network');
+
+var SEVERITIES = {warning: { color: 'rgb(249, 196, 98)', icon: 'fa fa-exclamation-circle'}};
+['notice', 'info', 'debug'].forEach(t => SEVERITIES[t] = { color: 'rgb(150, 230, 118)', icon: 'fa fa-info-circle'});
+['emerg', 'alert', 'crit', 'err'].forEach(t => SEVERITIES[t] = { color: 'rgb(242, 140, 140)', icon: 'fa fa-times-circle '});
 
 const NavLink = (props) => {
     var isActive = window.location.hash.indexOf(props.to) !== -1;
@@ -156,7 +162,7 @@ class Home extends Component {
         var tabs = menu_tabs.map(function(tab){
             return <li key={tab.title}><NavLink to={tab.link} tab>{tab.title}</NavLink></li>
         });
-        /*var navLinks = [{to: 'providers', glyph: 'hdd'}, {to: 'servers', klasa: 'server'}, 
+        /*var navLinks = [{to: 'providers', glyph: 'hdd'}, {to: 'servers', klasa: 'server'},
             {to: 'store', glyph: 'th'}, {to: 'services', glyph: 'cloud'},
             {to: 'servers', klasa: 'server'}, {to: 'servers', klasa: 'server'}
         ];*/
@@ -180,6 +186,7 @@ class Home extends Component {
                                     <Bootstrap.MenuItem eventKey='logout'>Logout</Bootstrap.MenuItem>
                             </Bootstrap.NavDropdown>
                         </Bootstrap.Nav>
+                        <NotificationRedux />
                     </Bootstrap.Navbar.Collapse>
                 </Bootstrap.Navbar>
                 <div className='main-content'>
@@ -237,7 +244,147 @@ class Home extends Component {
     }
 }
 
+class Notification extends Component {
+  constructor (props) {
+    super(props);
+    this.state = {
+      show: false,
+      newNotification: false
+    }
+    this.handleToggle = this.handleToggle.bind(this);
+    this.readAll = this.readAll.bind(this);
+  }
+
+  handleToggle() {
+    this.setState({ show: !this.state.show, newNotification: false });
+  }
+
+  componentWillUpdate(newProps) {
+    if(newProps.newNotifications != this.props.newNotifications && newProps.newNotifications.length)
+      this.setState({newNotification: true})
+  }
+
+  renderNotifications(n, className) {
+    return n.map((n, i) => {
+      const severity = SEVERITIES[n.severity];
+      return (
+        <div key={i} style={styles.row} className={className}>
+          <i className={severity.icon} style={{fontSize: '30px', color: severity.color}} />
+          <div style={styles.body}>
+            <div style={styles.text}>{n.message}</div>
+            <div style={styles.flexContainer}>
+              <div style={styles.subText}>{moment(n.timestamp).fromNow()}</div>
+              <div style={styles.subText}>{n.host}</div>
+            </div>
+          </div>
+        </div>
+      );
+    });
+  }
+
+  readAll() {
+    this.props.dispatch({ type: 'READ_ALL_NOTIFICATIONS' });
+  }
+
+  render() {
+    let classname = 'fa fa-bell fa-lg';
+    if(this.state.newNotification) {
+      classname += ' notification'
+    }
+    // console.log("notifications", this.props.notifications);
+    // console.log("newNotifications", this.props.newNotifications);
+    return (
+      <Bootstrap.Nav pullRight>
+        <span style={{position: 'relative'}}>
+          <i
+            className={classname}
+            style={{color: '#fff', cursor: 'pointer'}}
+            onClick={this.handleToggle}
+          />
+        </span>
+        {this.state.show && [
+            <div style={styles.overlay} onClick={this.handleToggle}></div>,
+            <div style={styles.popup} id="notification-popup">
+              <div style={styles.scroller}>
+                {this.renderNotifications(this.props.newNotifications, 'new-notification')}
+                {this.renderNotifications(this.props.notifications, '')}
+              </div>
+              <div style={styles.popupFooter}>
+                <span className='clickable' onClick={this.readAll}>Read all notifications</span>
+              </div>
+            </div>]}
+      </Bootstrap.Nav>
+    )
+  }
+}
+
+const NotificationRedux = connect(function(state) {
+    return {auth: state.auth, ...state.notifications}
+})(Notification);
+
+const styles = {
+  popup: {
+    position: 'absolute',
+    top: 55, //100%
+    right: 65, //-15,
+    backgroundColor: '#fff',
+    width: 358,
+    zIndex: 1000,
+    border: '1px solid rgba(235,235,235,0.4)',
+  },
+  scroller: {
+    overflowY: 'auto',
+    maxHeight: 400,
+  },
+  overlay: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    width: '100%',
+    height: '100%',
+    zIndex: 500
+  },
+  row: {
+    borderBottom: '1px solid rgba(77,82,89,0.07)',
+    padding: '10px',
+    display: 'flex',
+    alignItems: 'center'
+  },
+  body: {
+    flexGrow: 1,
+    paddingLeft: 8,
+    minWidth: 0
+  },
+  text: {
+    overflow: 'hidden',
+    whiteSpace: 'nowrap',
+    textOverflow: 'ellipsis',
+    lineHeight: '26px',
+    fontSize: 13,
+    height: '26px'
+  },
+  subText: {
+    fontSize: 12,
+    color: '#8b95a5'
+  },
+  flexContainer: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    lineHeight: '26px'
+  },
+  icon: {
+    fontSize: '20px'
+  },
+  popupFooter: {
+    backgroundColor: '#f9fafb',
+    padding: '8px 10px',
+    color: '#8b95a5',
+    height: 46,
+    display: 'flex',
+    alignItems: 'center'
+  }
+}
+
 module.exports = connect(function(state) {
     return {auth: state.auth, alert: state.alert, menu: state.menu}
 })(Home);
-

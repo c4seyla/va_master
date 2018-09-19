@@ -153,9 +153,7 @@ class GenericDriver(base.DriverBase):
 
     @tornado.gen.coroutine
     def get_servers(self, provider):
-        print ('Getting provider ', provider)
         servers = yield self.datastore_handler.get_provider(provider['provider_name'])
-        print ('Provider is : ', servers)
         servers = servers['servers']
         result = []
         

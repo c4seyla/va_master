@@ -156,7 +156,6 @@ class LXCDriver(base.DriverBase):
         return number_cpus 
 
     def container_to_dict(self, container, provider_name):
-        print ('Doing : ', container['server'].name)
         status_map = {
             'Running' : 'ACTIVE', 
             'Stopped' : 'SHUTOFF',
@@ -267,13 +266,11 @@ class LXCDriver(base.DriverBase):
             'free_servers' :0
         }
 
-        print ('Provider usage is : ', provider_usage)
         provider_data = {
             'servers' : servers, 
             'provider_usage' : provider_usage,
             'status' : {'success' : True, 'message': ''}
         }
-        print ('And my data is : ', provider_data)
         raise tornado.gen.Return(provider_data)
 
 

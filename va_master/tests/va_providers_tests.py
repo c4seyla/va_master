@@ -6,11 +6,20 @@ from va_test_base import VATestClass
 
 import warnings
 
+providers_file = 'providers.json'
 
 class VAProvidersTests(VATestClass):
 #    api = APIManager(va_url='https://127.0.0.1/api',token='1a882c9e22c2462d95dcadb8a127bb8d', verify=False)
     api = APIManager(va_url='https://127.0.0.1:443', va_user='admin', va_pass='admin', verify=False)
     warnings = []
+
+    def setUp(self):
+        super(VAProvidersTests, self).setUp()
+        with open(providers_file) as f: 
+            providers = f.read()
+
+        self.providers = json.loads(providers)
+
 
     def tearDown(self):
         if self.warnings: 
@@ -34,6 +43,19 @@ class VAProvidersTests(VATestClass):
         required_keys = ['status', 'provider_name', 'servers', 'provider_usage']
         self.handle_keys_in_set(providers['data'], required_keys, data_id_key = 'provider_name')
 
+
+
+    def test_add_all_providers(self):
+        for provider in self.providers: 
+            add_provider(provider)
+
+    def _test_provider_from_conf(self, provider):
+        for step in provider['steps']: 
+            new_step = self.api.api_call('/providers/new/validate_fields', method = 'post', data = step)
+            self.assertFalse(new_step['data']['errors'])
+
+        all_providers = self.api.api_call('/providers/info', method = 'post', data = {})
+        self.assertIn(provider, all_providers)
 
 
 #    @unittest.skip('Skipping temporarily. ')

@@ -89,6 +89,9 @@ var Home = React.createClass({
                                 <Bootstrap.MenuItem eventKey='logout'>Logout</Bootstrap.MenuItem>
                         </Bootstrap.NavDropdown>
                     </Bootstrap.Nav>
+                    <Bootstrap.Nav pullRight={true}>
+                        <span><i className="fa fa-bell" aria-hidden="true"></i></span>
+                    </Bootstrap.Nav>
                 </Bootstrap.Navbar.Collapse>
             </Bootstrap.Navbar>
             <div className='main-content'>

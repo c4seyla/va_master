@@ -469,7 +469,8 @@ class DriverBase(object):
 
         try:
             new_minion = subprocess.call(new_minion_cmd)
-            new_minion_state = subprocess.check_output(minion_apply_state)
+            if data.get('role'): 
+                new_minion_state = subprocess.check_output(minion_apply_state)
         except Exception as e: 
             import traceback
             traceback.print_exc()

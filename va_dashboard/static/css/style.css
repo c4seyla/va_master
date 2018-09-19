@@ -94,6 +94,7 @@ ul.left-menu a.active {
     border: 0;
     border-radius: 0;
     margin-bottom: 0;
+    position: static !important;
 }
 
 .top-logo {
@@ -309,12 +310,11 @@ ul.left-menu div {
 }
 
 .graph-block {
-    width: 60%;
-    margin-right: 2%;
+    width: 55%;
     position: relative;
-    padding-right: 20px;
+    padding-right: 10px;
     padding-top: 10px;
-    min-height: 300px;
+    height: 300px;
     float: left;
 }
 
@@ -330,10 +330,42 @@ ul.left-menu div {
     display: table-cell;
 }
 
-.log-block {
-    width: 38%;
+.stats-block {
+    width: 45%;
     float: left;
-    margin-top: 10px;
+    margin-top: 12px;
+		display: flex;
+		flex-direction: column;
+		height: 280px;
+}
+
+.stats-block > div {
+	display: flex;
+	flex-direction: row;
+	flex: 1;
+}
+
+.tile {
+	flex: 1;
+	padding: 10px 5px;
+	margin: 0 10px;
+	text-align: center;
+	cursor: pointer;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	background-color: #fff;
+	/* border-left-width: 3px;
+	border-left-style: solid */
+}
+
+.tile:last-child {
+	margin-right: 0!important;
+}
+
+.tile-icon {
+	font-size: 18px;
+	margin-bottom: 5px;
 }
 
 .log-chart {
@@ -372,7 +404,7 @@ ul.left-menu div {
 @keyframes spinner {
 	to {transform: rotate(360deg);}
 }
- 
+
 .spinner:before {
 	content: '';
 	box-sizing: border-box;
@@ -607,11 +639,11 @@ h4 {
 }
 
 #filter-log>.btn-group {
-    width: 65%;
+    width: 70%;
 }
 
 #filter-log>input {
-    width: 35%;
+    width: 30%;
     float: right;
     height: 32px;
 }
@@ -711,7 +743,7 @@ table tr.row-provider-Offline {
     text-decoration: none;
     border: 1px solid;
     border-color: #ccc;
-    /* 
+    /*
     border-color: #2e6da4;
     background-color: #337ab7 */
 }
@@ -1009,4 +1041,40 @@ label {
 
 #nav-dropdown{
     padding: 15px 17px;
+}
+
+.notification::after {
+	content: '';
+	position: absolute;
+	top: -3px;
+	right: -3px;
+	display: inline-block;
+	width: 10px;
+	height: 10px;
+	border-radius: 100%;
+	border: 2px solid #fff;
+	background-color: #f96868;
+}
+
+#notification-popup::after {
+	content: " ";
+	position: absolute;
+	bottom: 100%;  /* At the top of the tooltip */
+	left: 93%;
+	margin-left: -5px;
+	border-width: 5px;
+	border-style: solid;
+	border-color: transparent transparent white transparent;
+}
+
+.new-notification {
+	background-color: #f3f9ff;
+}
+
+.clickable {
+	cursor: pointer;
+}
+
+.clickable:hover {
+	color: #4d5259;
 }

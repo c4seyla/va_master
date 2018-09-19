@@ -40,7 +40,7 @@ function auth(state, action){
 function menu(state, action){
     if(typeof state === 'undefined'){
         return {tabs: {vpn: [
-            {title: 'Status', link: 'vpn_status'}, 
+            {title: 'Status', link: 'vpn_status'},
             {title: 'Users', link: 'vpn_users'}
         ], users: [
             {title: 'Users', link: 'users_users'},
@@ -252,27 +252,131 @@ function sidebar(state, action){
     return newState;
 }
 
+let ws;
+
+function initSocket() {
+    var host = window.location.host;
+    if(host.indexOf(":") == 0){
+        host += ":80";
+    }
+    var protocol =  window.location.protocol === "https:" ? "wss" : "ws";
+    ws = new WebSocket(`${protocol}://${host}/log`);
+    ws.onmessage = evt => {
+        var data = JSON.parse(evt.data);
+        var logs = [], hosts = [];
+        if(data.type === "update"){
+          store.dispatch({type: 'UPDATE_LOGS', log: data.message, host: data.message.host })
+        }
+        else if(data.type === "init"){
+          logs = data.logs, hosts = data.hosts;
+          store.dispatch({type: 'INIT_LOGS', logs, hosts, selected_hosts: hosts })
+        }
+        else if(data.type === "init_notifications"){
+          store.dispatch({type: 'INIT_NOTIFICATIONS', notifications: data.notifications })
+        }
+        else if(data.type === "update_notifications"){
+          store.dispatch({type: 'UPDATE_NOTIFICATIONS', notification: {message: data.message, timestamp: data.timestamp, severity: data.severity, host: data.host} })
+        }
+    };
+    ws.onerror = evt => {
+        ws.close();
+        store.dispatch({type: 'SHOW_ALERT', msg: "Socket error."});
+    };
+}
+
+initSocket()
+
 function logs(state, action){
     if(typeof state === 'undefined'){
-        return [];
+        return {
+          logs: [],
+          newLogs: 0
+        };
     }
 
-    var newState = state.slice(0);
+    var newState = Object.assign({}, state);
     if(action.type == 'INIT_LOGS'){
-        newState = action.logs;
+      newState.logs = action.logs;
+      newState.newLogs = 0;
     }
-    else if(action.type == 'UDDATE_LOGS'){
-        newState = state.concat([action.logs]);
+    else if(action.type == 'UPDATE_LOGS'){
+      newState.logs = [...newState.logs, action.log];
+      ++newState.newLogs;
     }
     else if(action.type == 'RESET_LOGS'){
-        newState = [];
+      newState.logs = [];
+      newState.newLogs = 0;
     }
-
+    else if(action.type == 'SEND_MESSAGE') {
+      ws.send(JSON.stringify(action.msg));
+    }
+    else if(action.type == 'GET_LOGS'){
+      if(ws.readyState === ws.OPEN){
+        ws.send(JSON.stringify({type: "get_messages"}));
+      } else {
+        setTimeout(() => ws.send(JSON.stringify({type: "get_messages"})), 1000)
+      }
+    }
 
     return newState;
 }
 
-var mainReducer = combineReducers({auth, table, filter, modal, apps, div, panel, alert, form, sidebar, logs, menu});
+function hosts(state, action){
+    if(typeof state === 'undefined'){
+        return {
+          hosts: [],
+          selected_hosts: []
+        };
+    }
+
+    var newState = Object.assign({}, state);
+    if(action.type == 'INIT_LOGS'){
+      newState.hosts = action.hosts;
+      newState.selected_hosts = action.selected_hosts;
+    }
+    else if(action.type == 'UPDATE_LOGS'){
+      let h = newState.hosts.map((host) => host.value);
+      if(h.indexOf(action.host) === -1){
+        newState.hosts = [...newState.hosts, {value: action.host, label: action.host}];
+        newState.selected_hosts = Object.assign([], newState.hosts);
+      }
+    }
+    else if(action.type == 'SELECT_HOST'){
+      newState.selected_hosts = action.selected_hosts;
+    }
+
+    return newState;
+}
+
+function notifications(state, action){
+    if(typeof state === 'undefined'){
+        return {
+          notifications: [],
+          newNotifications: []
+        };
+    }
+
+    var newState = Object.assign({}, state);
+    if(action.type == 'INIT_NOTIFICATIONS'){
+      newState.notifications = action.notifications;
+      newState.notifications.reverse();
+      newState.newNotifications = [];
+    }
+    else if(action.type == 'UPDATE_NOTIFICATIONS'){
+      // newState.notifications = [action.notification, ...newState.notifications];
+      // ++newState.newNotifications;
+      newState.newNotifications = [action.notification, ...newState.newNotifications];
+    }
+    else if(action.type == 'READ_ALL_NOTIFICATIONS'){
+      // newState.newNotifications = 0;
+      newState.notifications = [...Object.assign([], newState.newNotifications), ...newState.notifications];
+      newState.newNotifications = [];
+    }
+
+    return newState;
+}
+
+var mainReducer = combineReducers({auth, table, filter, modal, apps, div, panel, alert, form, sidebar, logs, hosts, notifications, menu});
 var store = createStore(mainReducer);
 
 var Home = require('./tabs/home');
@@ -311,7 +415,7 @@ class App extends Component {
                 <Route path='/vpn/list_logins/:username' component={VpnLogins} />
                 <Route path='/triggers' component={Triggers} />
                 <Route path='/ts_status' component={Ts_status} />
-                <Route path='/log' component={Log} />
+                <Route path='/log(/:type)' component={Log} />
                 <Route path='/billing' component={Billing} />
                 <Route path='/services' component={Services} />
                 <Route path='/users_users' component={Users} />
