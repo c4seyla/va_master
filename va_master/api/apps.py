@@ -41,6 +41,7 @@ def get_paths():
             'apps' : {'function' : launch_app, 'args' : ['handler']},
             'apps/change_app_type' : {'function' : change_app_type, 'args' : ['datastore_handler', 'server_name', 'app_type']},
             'apps/install_new_app' : {'function' : install_app, 'args' : ['datastore_handler', 'app_zip', 'app_json']},
+            'apps/get_app_required_args' : {'function' : get_app_args, 'args' : ['datastore_handler', 'app_name']},
             'apps/add_minion' : {'function' : add_minion_to_server, 'args' : ['datastore_handler', 'server_name', 'ip_address', 'username', 'password', 'key_filename', 'role']},
             'apps/action' : {'function' : perform_server_action, 'args' : ['handler', 'provider_name', 'action', 'server_name', 'action_type', 'kwargs']},
             'apps/add_vpn_user': {'function' : add_openvpn_user, 'args' : ['username']},
@@ -244,6 +245,11 @@ def install_app(datastore_handler, app_zip, app_json):
     with open(tmp_app, 'w') as f:
         f.write(app_zip)
     yield install_new_app(datastore_handler, app_json, tmp_app)
+
+@tornado.gen.coroutine
+def get_app_args(datastore_handler, app_name):
+    app = yield datastore_handler.get_object(object_type = 'app', app_name = app_name)
+    raise tornado.gen.Return(app['required_args'])
 
 @tornado.gen.coroutine
 def change_app_type(datastore_handler, server_name, app_name):

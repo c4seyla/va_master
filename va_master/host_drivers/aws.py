@@ -295,3 +295,16 @@ class AWSDriver(base.DriverBase):
 #            Probablt not important right now but might come in handy. 
 #            cmd_aws_import  = ['aws', 'ec2', 'import-key-pair', '--key-name', self.key_name, '--public-key-material',  'file://' + self.key_path + '.pub', '--profile', 'aws_provider']
 
+    @tornado.gen.coroutine
+    def create_server(self, host, data):
+        """ Works properly with the base driver method, but overwritten for bug tracking. """
+        try:
+            yield super(AWSDriver, self).create_minion(host, data)
+
+            #Once a server is created, we revert the templates to the originals for creating future servers. 
+            self.profile_template = PROFILE_TEMPLATE
+            self.provider_template = PROVIDER_TEMPLATE
+        except:
+            import traceback
+            traceback.print_exc()
+

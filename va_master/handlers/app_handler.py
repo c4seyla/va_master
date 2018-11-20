@@ -55,7 +55,7 @@ def handle_app_package(path_to_app, action = 'install'):
     if action not in ['install', 'uninstall']:
         raise Exception('Attempted to handle app package with action: ' + str(action))
 
-    install_cmd = [sys.executable, '-m', 'pip', 'install', path_to_app]
+    install_cmd = [sys.executable, '-m', 'pip', 'install', path_to_app, '--upgrade']
     try:
         subprocess.call(install_cmd)
     except:
@@ -68,8 +68,7 @@ def handle_app_package(path_to_app, action = 'install'):
 def handle_app_action(datastore_handler, server, action, args, kwargs):
     app = yield datastore_handler.get_object('app', app_name = server['role'])
     app_action = app['functions'][action]
-    app_kwargs = {x : server[x] for x in app_action['args']}
-    print (kwargs, app_kwargs)
+    app_kwargs = {x : server[x] for x in app_action.get('args', [])}
     kwargs.update(app_kwargs)
 
     app_module = app['module']

@@ -11,7 +11,7 @@ def get_paths():
     paths = {
         'get' : {
             'drivers' : {'function' : list_drivers, 'args' : ['drivers_handler']},
-            'drivers/get_steps' : {'function' : get_driver_steps, 'args' : ['handler', 'driver_name', 'provider_name']},
+            'drivers/get_steps' : {'function' : get_driver_steps, 'args' : ['handler', 'driver_name']},
 
             'providers/get_trigger_functions': {'function' : get_providers_triggers, 'args' : ['provider_name']},
             'providers/get_provider_billing' : {'function' : get_provider_billing, 'args' : ['provider_name']},
