@@ -396,6 +396,7 @@ class DatastoreHandler(object):
     @tornado.gen.coroutine
     def get_states_and_apps(self, get_states_without_modules = False):
         states = yield self.datastore.get_recurse('states/')
+        states = [x for x in states if not x.get('hide')]
         apps = yield self.datastore.get_recurse('apps/')
         states += apps
         if not get_states_without_modules: 

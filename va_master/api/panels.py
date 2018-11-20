@@ -338,6 +338,8 @@ def get_panels(handler, dash_user):
     datastore_handler = handler.datastore_handler
     panels = yield list_panels(datastore_handler, dash_user)
 
+    panels.sort(key = lambda x: x.get('sort_key', ''))
+
     raise tornado.gen.Return(panels)
 
 @tornado.gen.coroutine
@@ -353,9 +355,7 @@ def get_panel_for_user(handler, panel, server_name, dash_user, args = [], provid
     if not kwargs: 
         kwargs = {x : handler.data[x] for x in handler.data if x not in ignored_kwargs}
 
-    print ('Looking for state ', state)
     state = yield datastore_handler.get_state(name = state)
-    print ('Staet is : ', state)
     action = 'get_panel'
     if type(args) != list and args: 
         args = [args]

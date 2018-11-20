@@ -164,7 +164,6 @@ def perform_server_action(handler, action, server_name, provider_name = '', acti
         result = {'success' : True, 'message' : '', 'data' : result}
 
     result['message'] = 'Action %s completed successfuly. ' % action
-    print ('ACtino result is : ', result)
     raise tornado.gen.Return(result)
 
 
@@ -178,6 +177,7 @@ def get_states(handler, dash_user):
     
     datastore_handler = handler.datastore_handler
     states_data = yield datastore_handler.get_states_and_apps()
+    states_data = [x for x in states_data if not x.get('hide')]
     panels_data = yield panels.get_panels(handler, dash_user)
 
     default_panels = {'admin' : [], 'user' : []}
