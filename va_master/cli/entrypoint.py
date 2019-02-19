@@ -8,6 +8,7 @@ from OpenSSL import crypto, SSL
 from socket import gethostname
 from pprint import pprint
 from time import gmtime, mktime
+import uuid
 
 #We use coloredlogs for limited prettier output. It may not be available for all terminals. 
 try:
@@ -27,10 +28,10 @@ def generate_keys(master_config, crt_path, key_path):
     cert.get_subject().O = "Master server"
     cert.get_subject().OU = "No organization"
     cert.get_subject().CN = gethostname()
-    cert.set_serial_number(1000)
+    cert.set_serial_number(int(uuid.uuid4()))
     cert.gmtime_adj_notBefore(0)
     cert.gmtime_adj_notAfter(10*365*24*60*60)
-    cert.set_issuer(cert.get_subject())
+    #cert.set_issuer(cert.get_subject())
     cert.set_pubkey(k)
     cert.sign(k, 'sha1')
 
