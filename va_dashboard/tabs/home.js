@@ -189,7 +189,7 @@ class Home extends Component {
 
                             <li>
                             <NavLink to='integrations' tabs='integrations' show_tabs={this.show_tabs}>
-                                <span><i className='fa fa-exchange' /> Integrations </span>
+                                <span><i className='fa fa-exchange' /> Integrations <span className="badge">{this.state.stats.integrations}</span></span>
                             </NavLink>
                             </li>
 

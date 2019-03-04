@@ -102,6 +102,11 @@ class ApiHandler(tornado.web.RequestHandler):
     def fetch_func(self, method, path, data):
         try:
             api_func = self.paths[method].get(path)
+#            api_func = None
+#            for local_path in self.paths[method]:
+#                search_result = re.search(self.paths[method][local_path], path)
+#                if search_result.groups()
+#                    api_func = search.result.groups()[0]
 #            logging_data = {x : str(data[x])[:50] for x in data}
             self.config.logger.info('Getting a call at ' + str(path) + ' with data ' + str(data) + ' and will call function: ' + str(api_func))
 

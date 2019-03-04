@@ -29,17 +29,19 @@ def function_is_documented(doc, func_name = ''):
 
 
     #This is kind of a testing thing, if I'm creating a function and it appears not to be documented, just put the functino name here and it will print out stuff which may be useful. 
-    test_function = 'mysql.ipranges'
+    test_function = 'create_employee'
     testing = False
 
     if func_name == test_function: 
-        print ('Testing ', func_name)
+        print ('Testing ', test_function)
         print ('It has ', doc)
         testing = True
 
     #Sometimes we straight up pass the docstring to this function. 
     if callable(doc): 
         doc = doc.__doc__
+        if testing: 
+            print ('Doc was ', doc)
 
     if testing: 
         print ('Testing doc ')
@@ -188,8 +190,10 @@ def get_api_functions(datastore_handler):
     for app in apps:
         imported_module = importlib.import_module(app['module'])
         module_functions = inspect.getmembers(imported_module, inspect.isfunction)
-        module_functions = [[x[0], yaml.load(x[1].__doc__)] for x in module_functions if function_is_documented(x[1])]
-        all_functions[app['name']] = module_functions
+#        print (module_functions)
+#        print ('Calling documented with ', [x[1] for x in module_functions])
+        module_functions = [[x[0], yaml.load(x[1].__doc__)] for x in module_functions if function_is_documented(x[1], func_name = x[0])]
+        all_functions[app['module']] = module_functions
 
     raise tornado.gen.Return(all_functions)
 

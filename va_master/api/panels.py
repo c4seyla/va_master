@@ -11,9 +11,9 @@ from salt.client import LocalClient
 def get_paths():
     paths = {
         'get' : {
-            'panels' : {'function' : get_panels, 'args' : ['handler', 'dash_user']}, 
+            'panels' : {'function' : get_panels, 'args' : ['datastore_handler', 'dash_user']}, 
             'panels/stats' : {'function' : get_panels_stats, 'args' : ['handler', 'dash_user']},
-            'panels/get_panel' : {'function' : get_panel_for_user, 'args' : ['handler', 'server_name', 'panel', 'provider', 'handler', 'args', 'dash_user']},
+            'panels/get_panel' : {'function' : get_panel_for_user, 'args' : ['handler', 'server_name', 'panel', 'provider', 'args', 'dash_user']},
             'panels/get_services_and_logs' : {'function' : get_services_and_logs, 'args' : ['datastore_handler']},
         },
         'post' : {
@@ -403,18 +403,19 @@ def get_panels_stats(handler, dash_user):
     vpn = {'users' : []}
     states = yield apps.get_states(handler, dash_user)
     
-    result = {'providers' : len(providers), 'servers' : len(servers), 'services' : serv, 'vpn' : len(vpn['users']), 'apps' : len(states)}
+    integrations = yield handler.datastore_handler.datastore.get_recurse('app_integration/')
+
+    result = {'providers' : len(providers), 'servers' : len(servers), 'services' : serv, 'vpn' : len(vpn['users']), 'apps' : len(states), "integrations" : len(integrations)}
     raise tornado.gen.Return(result)
 
 
 @tornado.gen.coroutine
-def get_panels(handler, dash_user):
+def get_panels(datastore_handler, dash_user):
     """ 
         description: Returns a list of the panels for the logged in user. Panels are retrieved from the panels/<user_type>/<role> key in the datastore, with user_type being user/admin and is retrieved from the auth token, and role being one of the apps added to the datastore. See the apps documentation for more info. 
         output: '[{"servers": [], "panels": [{"name": "User-friendly name", "key": "module.panel_name"}], "name": "role_name", "icon": "fa-icon"}]'
         visible: True
     """
-    datastore_handler = handler.datastore_handler
     panels = yield list_panels(datastore_handler, dash_user)
 
     raise tornado.gen.Return(panels)
