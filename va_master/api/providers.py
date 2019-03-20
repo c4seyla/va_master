@@ -320,7 +320,7 @@ def get_providers_info(handler, dash_user, get_billing = True, get_servers = Tru
     providers_data = [x[0].get_provider_data(provider = x[1], get_servers = get_servers, get_billing = get_billing) for x in zip(provider_drivers, providers)]
     providers_info = yield providers_data
    
-    states = yield panels.get_panels(handler, dash_user)
+    states = yield panels.list_panels(handler.datastore_handler, dash_user)
 
     for p_info in zip(providers_info, providers):
         provider = p_info[0]
@@ -381,6 +381,8 @@ def get_providers_info(handler, dash_user, get_billing = True, get_servers = Tru
             [x for x in providers_info if x.get('location', 'va-master') == l] for l in [x.get('location', 'va-master')
          for x in providers_info]}
 
+
+    print ('Info is : ', providers_info)
     raise tornado.gen.Return(providers_info)
 
 
