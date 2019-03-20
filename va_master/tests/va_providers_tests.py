@@ -59,7 +59,7 @@ class VAProvidersTests(VATestBase):
         self.assert_success(providers)
 
         required_keys = ['status', 'provider_name', 'servers', 'provider_usage']
-        self.handle_keys_in_set(providers['data'], required_keys, data_id_key = 'provider_name')
+        self.test_keys_in_set(providers['data'], required_keys, data_id_key = 'provider_name')
 
 
 

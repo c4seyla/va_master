@@ -38,7 +38,7 @@ class VATestBase(object):
     def output_results(self):
         print self.function_results #TODO print prettier
 
-    def handle_keys_in_set(self, data, required_keys, warning_keys = {}, data_id_key = ''):
+    def test_keys_in_set(self, data, required_keys, warning_keys = {}, data_id_key = ''):
         for d in data: 
             assert set(d.keys()).issuperset(required_keys), "Failed key test for " + d.get(data_id_key, str(d)) + " : " + str(d.keys()) + " don't contain " + str(required_keys)
 #            if not set(d.keys()).issuperset(warning_keys):
