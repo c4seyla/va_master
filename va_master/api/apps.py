@@ -32,13 +32,14 @@ def get_paths():
             'apps/get_all_salt_functions' : {'function' : get_all_salt_functions, 'args' : []},
 
             'states' : {'function' : get_states, 'args' : ['handler', 'dash_user']},
+            'apps' : {'function' : get_states, 'args' : ['handler', 'dash_user']},
 
         },
         'post' : {
             'state/add' : {'function' : create_new_state,'args' : ['file', 'body', 'filename']},
             'states/reset' : {'function' : reset_states, 'args' : ['datastore_handler']}, 
             'apps/new/validate_fields' : {'function' : validate_app_fields, 'args' : ['handler']},
-            'apps' : {'function' : launch_app, 'args' : ['handler']},
+#            'apps' : {'function' : launch_app, 'args' : ['handler']},
             'apps/change_app_type' : {'function' : change_app_type, 'args' : ['datastore_handler', 'server_name', 'app_type']},
             'apps/install_new_app' : {'function' : install_app, 'args' : ['datastore_handler', 'app_zip', 'app_json']},
             'apps/add_minion' : {'function' : add_minion_to_server, 'args' : ['datastore_handler', 'server_name', 'ip_address', 'username', 'password', 'key_filename', 'role']},
@@ -312,6 +313,7 @@ def launch_app(handler):
     """
 
     data = handler.data
+    print ('Creating with data : ', data)
     try:
         provider, driver = yield providers.get_provider_and_driver(handler, data.get('provider_name', 'va_standalone_servers'))
     
