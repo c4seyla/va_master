@@ -1,4 +1,4 @@
-import json, glob, yaml, datetime, os
+import json, glob, yaml, datetime, os, time
 import requests
 import subprocess
 import traceback
@@ -212,6 +212,8 @@ class DatastoreHandler(object):
     def get_users(self, user_type = 'users'):
         try:
             users = yield self.datastore.get_recurse(user_type + '/')
+            #TODO remove this, this is kind of for testing since we got users without usernames a few times
+            users = [x for x in users if 'username' in x.keys()]
         except Exception: 
             users = []
         users = [x['username'] for x in users]
@@ -223,7 +225,7 @@ class DatastoreHandler(object):
         edited_user = yield self.get_object('user', username = user)
 
         crypted_pass = crypt(password)
-        edited_user['password'] = crypted_pass
+        edited_user['password_hash'] = crypted_pass
         yield self.insert_object('user', data = edited_user, username = user) 
 
     @tornado.gen.coroutine
@@ -233,12 +235,21 @@ class DatastoreHandler(object):
     @tornado.gen.coroutine
     def set_user_functions(self, user, functions):
         edited_user = yield self.get_object('user', username = user)
+        old_functions = {x['func_path'] : x for x in edited_user.get('functions', [])}
         all_functions = []
         for f in functions: 
+
             if f.get('func_type', '') == 'function_group' : 
                 all_functions += f['functions']
-            elif f.get('value'): 
-                all_functions.append({'func_path' : f['value']})
+            elif f.get('value'):
+                #This is kind of workaround-ish, as the dashboard does some weird things with the output. 
+                new_func = {"func_path" : f['value']}
+                print ('Old functions are : ', old_functions)
+                if f['value'] in old_functions.keys():
+                    print ('Will add ', old_functions[f['value']].get('predefined_arguments', {})) 
+                    new_func['predefined_arguments'] = old_functions[f['value']].get('predefined_arguments', {}) 
+
+                all_functions.append(new_func)
             else: 
                 all_functions.append(f)
 
@@ -266,7 +277,7 @@ class DatastoreHandler(object):
             user = yield self.get_object(user_type, username = username)
         except: 
             user = None
-
+        print ('Tried to get ', user_type, ' found ', user)
         raise tornado.gen.Return(user)
 
     @tornado.gen.coroutine
@@ -279,6 +290,7 @@ class DatastoreHandler(object):
 
     @tornado.gen.coroutine
     def get_panels(self, user_type):
+        print ('Getting recurse panels/' + user_type)
         panels = yield self.datastore.get_recurse('panels/' + user_type)
         raise tornado.gen.Return(panels)
 
@@ -412,8 +424,19 @@ class DatastoreHandler(object):
         raise tornado.gen.Return(state)
 
     @tornado.gen.coroutine
-    def create_user(self, user_data, user_type = 'user'):
-        yield self.insert_object(user_type, data = user_data, username = user_data['username'])
+    def create_user(self, username, password, user_type = 'user'):
+        user = yield self.find_user(username)
+        if user:
+            raise Exception('Username ' + username + ' is already taken ')
+
+        crypted_pass = crypt(password)
+        user = {
+            'username': username,
+            'password_hash': crypted_pass,
+            'timestamp_created': long(time.time())
+        }
+
+        yield self.insert_object(user_type, data = user, username = user['username'])
 
     @tornado.gen.coroutine
     def get_user_groups(self):

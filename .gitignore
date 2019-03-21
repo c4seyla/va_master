@@ -22,4 +22,3 @@ va_master/host_drivers/aek_driver.py
 va_dashboard/static/logo-splash.png
 va_dashboard/static/logo.png
 va_dashboard/static/bundle.js
-ssl/*

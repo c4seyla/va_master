@@ -199,7 +199,7 @@ class OpenStackDriver(base.DriverBase):
             import traceback
             print ('Error creating keypair with name %s and key %s. ' % (self.keypair_name, key))
             traceback.print_exc()
-            raise Exception('Error creating a nova keypair with name %s. Message was: %s. ' % (self.keypair_name, e.message))
+            #raise Exception('Error creating a nova keypair with name %s. Message was: %s. ' % (self.keypair_name, e.message))
 
 
     @tornado.gen.coroutine

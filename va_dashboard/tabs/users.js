@@ -6,6 +6,8 @@ import {findDOMNode} from 'react-dom';
 import Select from 'react-select-plus';
 import {Table, Tr, Td} from 'reactable';
 import { getSpinner } from './util';
+import { hashHistory } from 'react-router';
+var Modal=require('./modal_new');
 
 class UserGroupPanel extends Component {
     constructor (props) {
@@ -54,7 +56,7 @@ class UserGroupPanel extends Component {
         return (
             <div className="app-containter">
                 {loading && getSpinner()}
-                <UserRedux funcs = {this.state.funcs} groups = {this.state.group_opt} style={blockStyle} />
+                <Users funcs = {this.state.funcs} groups = {this.state.group_opt} style={blockStyle} auth={this.props.auth} dispatch={this.props.dispatch}/>
             </div>
         )
     }
@@ -82,6 +84,7 @@ class Users extends Component {
         var me = this;
         Network.get('/api/panels/users', this.props.auth.token)
         .done(function (data){
+            console.log('Get users');
             me.setState({users: data});
         })
         .fail(function (msg) {
@@ -90,13 +93,15 @@ class Users extends Component {
     }
 
     componentDidMount () {
-        this.getCurrentUsers();
+       this.getCurrentUsers();
     }
 
     openModal() {
         this.setState({modal_open: true, update: false});
     }
-
+    getSelectedUser(){
+        return this.state.selected_user;
+    }
     addUser(data) {
         var users = Object.assign([], this.state.users);
         data.functions = data.functions.map(function(f){
@@ -110,10 +115,12 @@ class Users extends Component {
         var users = Object.assign([], this.state.users);
         if(data.functions.length > 0 && typeof data.functions[0] === 'object'){
             data.functions = data.functions.map(function(f){
+                console.log('f',f);
                 return f.value;
             });
         }
         users[index] = data;
+        console.log('Users', users);
         this.setState({modal_open: false, users: users});
     }
 
@@ -122,6 +129,7 @@ class Users extends Component {
     }
 
     btn_clicked(index, evtKey){
+        var tt=this;
         var users = Object.assign([], this.state.users);
         var user = users[index];
         if(evtKey === "remove"){
@@ -132,15 +140,33 @@ class Users extends Component {
             }).fail(function (msg) {
                 me.props.dispatch({type: 'SHOW_ALERT', msg: msg});
             });
-        }else{
+        }else if(evtKey === "update"){
             this.setState({modal_open: true, update: index, selected_user: user});
+        }else{
+            console.log('Permissions per user', user);
+            tt.props.dispatch({type: 'USER_PERMISSIONS', permUser: user});
+            hashHistory.push('/users_permissions');
         }
     }
 
     render() {
+        var me=this;
         var user_rows = this.state.users.map(function(user, index) {
-            var groups = user.groups.join(', ');
-            var funcs = user.functions.join(', ');
+            var functions_array=user.functions;
+            var funcs=[];
+            if(functions_array.length >0 && typeof functions_array[0]=== 'object'){
+
+                var functions_path_array=[];
+                functions_array.forEach(function(element) {
+                    functions_path_array.push(element.func_path);
+                });
+                var groups = user.groups.join(', ');
+                //var funcs = user.functions.join(', ');
+                funcs=functions_path_array.join(', ');
+            }
+            else{
+                funcs=functions_array.join(', ');
+            }
             return (
                 <Tr key={user.user}>
                     <Td column="Username">{user.user}</Td>
@@ -150,21 +176,17 @@ class Users extends Component {
                         <Bootstrap.DropdownButton bsStyle='primary' title="Choose" onSelect = {this.btn_clicked.bind(null, index)}>
                             <Bootstrap.MenuItem eventKey="remove">Remove</Bootstrap.MenuItem>
                             <Bootstrap.MenuItem eventKey="update">Update</Bootstrap.MenuItem>
+                            <Bootstrap.MenuItem eventKey="permissions">Permissions</Bootstrap.MenuItem>
                         </Bootstrap.DropdownButton>
                     </Td>
                 </Tr>
             );
         }, this);
-
-        var ModalRedux = connect(function(state){
-            return {auth: state.auth, alert: state.alert};
-        })(Modal);
-
         var modal;
         if(typeof this.state.update === "number"){
-            modal = <ModalRedux type = {3} isOpen = {this.state.modal_open} update = {this.updateUser} index = {this.state.update} selected_user = {this.state.selected_user} close = {this.closeModal} funcs = {this.props.funcs} groups = {this.props.groups} />
+            modal = <Modal user={me.state.selected_user} type = {3} isOpen = {this.state.modal_open} update = {this.updateUser} index = {this.state.update} close = {this.closeModal} funcs = {this.props.funcs} groups = {this.props.groups} auth={this.props.auth}/>
         }else{
-            modal = <ModalRedux type = {1} isOpen = {this.state.modal_open} add = {this.addUser} close = {this.closeModal} funcs = {this.props.funcs} groups = {this.props.groups} />
+            modal = <Modal type = {1} isOpen = {this.state.modal_open} add = {this.addUser} close = {this.closeModal} funcs = {this.props.funcs} groups = {this.props.groups} auth={this.props.auth} dispatch={this.props.dispatch} />
         }
 
         return ( 
@@ -268,15 +290,12 @@ class Groups extends Component {
             );
         }, this);
 
-        var ModalRedux = connect(function(state){
-            return {auth: state.auth, alert: state.alert};
-        })(Modal);
 
         var modal;
         if(typeof this.state.update === "number"){
-            modal = <ModalRedux type = {4} isOpen = {this.state.modal_open} update = {this.updateGroup} index = {this.state.update} selected_group = {this.state.selected_group} close = {this.closeModal} funcs = {this.props.funcs} />
+            modal = <Modal type = {4} isOpen = {this.state.modal_open} update = {this.updateGroup} index = {this.state.update} selected_group = {this.state.selected_group} close = {this.closeModal} funcs = {this.props.funcs} />
         }else{
-            modal = <ModalRedux type = {2} isOpen = {this.state.modal_open} add = {this.addGroup} close = {this.closeModal} funcs = {this.props.funcs} />
+            modal = <Modal type = {2} isOpen = {this.state.modal_open} add = {this.addGroup} close = {this.closeModal} funcs = {this.props.funcs} />
         }
 
         return (
@@ -292,8 +311,7 @@ class Groups extends Component {
     }
 }
 
-
-class Modal extends Component {
+/*class Modal extends Component {
     constructor (props) {
         super(props);
         var data = {
@@ -303,7 +321,8 @@ class Modal extends Component {
         };
         var type = this.props.type;
         if(type === 3){
-            var user = this.props.selected_user;
+            var user = this.props.user.user;
+            console.log(user);
             data.value = user.functions;
             data.group = user.groups;
             data.user = user.user;
@@ -325,7 +344,6 @@ class Modal extends Component {
         for(let i=0; i<elements.length; i++){
             data[elements[i].name] = elements[i].value;
         }
-        console.log(data);
         var me = this, url = "/api/panels/create_user_group", type = this.props.type;
         delete data[""]
         let funcs = Object.assign([], this.state.value);
@@ -333,7 +351,8 @@ class Modal extends Component {
             url =(type == 1) ? "/api/panels/create_user_with_group" : "/api/panels/update_user";
             if(funcs.length > 0 && typeof funcs[0] === 'object'){
                 for(let i=0; i<funcs.length; i++){
-                    funcs[i].group = funcs[i].group.label;
+                    console.log('Funcs', funcs[i]);
+                    funcs[i].group = funcs[i].func_name;
                 }
             }
             data["functions"] = funcs;
@@ -351,7 +370,7 @@ class Modal extends Component {
         }else{
             if(funcs.length > 0 && typeof funcs[0] === 'object'){
                 for(let i=0; i<funcs.length; i++){
-                    funcs[i].group = funcs[i].group.label;
+                    funcs[i].group = funcs[i].func_name;
                 }
             }
             data["functions"] = funcs;
@@ -361,6 +380,25 @@ class Modal extends Component {
         }).fail(function (msg) {
             me.props.dispatch({type: 'SHOW_ALERT', msg: msg});
         });
+    }
+
+    componentWillReceiveProps(nextProps){
+        var me=this;
+        console.log('Props ', nextProps);
+       if(nextProps.user != undefined){
+            if(nextProps.user.functions.length > 0 && typeof nextProps.user.functions[0] == 'object'){
+                var functions_values=nextProps.user.functions;
+                var functions_paths_values=[];
+                functions_values.forEach(function(element) {
+                    functions_paths_values.push(element.func_path);
+                });
+                me.setState({value: functions_paths_values});
+            }
+            if(nextProps.user.functions.length > 0 && typeof nextProps.user.functions[0] == 'string'){
+                me.setState({value: nextProps.user.functions})
+            }
+       }
+        return true;
     }
 
     typeChange (evt) {
@@ -414,11 +452,19 @@ class Modal extends Component {
             title="Update user";
             btn_text = "Update user";
             help_text = "Fill the form to update the user";
+            var functions_values=this.props.user.functions;
+
+            var functions_paths_values=[];
+            functions_values.forEach(function(element) {
+                functions_paths_values.push(element.func_path);
+            });
+
+
             form = (
                 <div>
-                    <Bootstrap.FormControl type='text' name="user" value={this.state.user} disabled={true} />
+                    <Bootstrap.FormControl type='text' name="user" value={this.props.user.user} disabled={true} />
                     <Bootstrap.FormControl type='password' name="password" placeholder="Password" />
-                    <Select name="groups" options={this.props.groups} multi={true} placeholder="Select groups" value={this.state.group} onChange={this.onChangeGroup} />
+                    <Select name="groups" options={this.props.groups} multi={true} placeholder="Select groups" value={this.props.user.groups} onChange={this.onChangeGroup} />
                     <Select name="functions" options={this.props.funcs} multi={true} placeholder="Select functions" value={this.state.value} onChange={this.onChange} />
                 </div>
             );
@@ -459,8 +505,7 @@ class Modal extends Component {
         </Bootstrap.Modal>
         );
     }
-}
-
+}*/
 
 module.exports = {
     Panel: connect(state => {

@@ -42,6 +42,7 @@ def get_paths():
 #            'apps' : {'function' : launch_app, 'args' : ['handler']},
             'apps/change_app_type' : {'function' : change_app_type, 'args' : ['datastore_handler', 'server_name', 'app_type']},
             'apps/install_new_app' : {'function' : install_app, 'args' : ['datastore_handler', 'app_zip', 'app_json']},
+            'apps/get_app_required_args' : {'function' : get_app_args, 'args' : ['datastore_handler', 'app_name']},
             'apps/add_minion' : {'function' : add_minion_to_server, 'args' : ['datastore_handler', 'server_name', 'ip_address', 'username', 'password', 'key_filename', 'role']},
             'apps/action' : {'function' : perform_server_action, 'args' : ['handler', 'provider_name', 'action', 'server_name', 'action_type', 'kwargs']},
             'apps/add_vpn_user': {'function' : add_openvpn_user, 'args' : ['username']},
@@ -57,7 +58,16 @@ def get_paths():
 
 @tornado.gen.coroutine
 def get_openvpn_users():
-    """Gets openvpn users and current status. Then merges users to find currently active ones and their usage data. """
+    """
+        description: Gets openvpn users and current status. Then merges users to find currently active ones and their usage data. 
+        output: 
+          active: 
+            - test_user
+          revoked: 
+            - test_user_2
+          status: {}
+        visible: True
+    """
 
     cl = LocalClient()
     openvpn_users = call_master_cmd('openvpn.list_users')
@@ -95,7 +105,17 @@ def get_openvpn_status():
 
 @tornado.gen.coroutine
 def add_openvpn_user(username):
-    """Creates a new openvpn user. """
+    """
+        description: Creates a new openvpn user. 
+        arguments: 
+          - name: username
+            description: The username for the new user
+            required: True
+            type: string
+            example: test_user
+        visible: True
+        
+    """
 
     success = call_master_cmd('openvpn.add_user', kwarg = {'username' : username})
     if success:
@@ -104,7 +124,15 @@ def add_openvpn_user(username):
 
 @tornado.gen.coroutine
 def revoke_openvpn_user(username):
-    "Revokes an existing vpn user"""
+    """
+        description: Revokes an existing vpn user
+        arguments: 
+          - name: username
+            description: The username of the user to be revoked
+            required: True
+            type: string
+            
+    """
 
     success = call_master_cmd('openvpn.revoke_user', kwarg = {'username' : username})
  
@@ -116,7 +144,15 @@ def revoke_openvpn_user(username):
 
 @tornado.gen.coroutine
 def list_user_logins(username): 
-    """Provides a list of previous openvpn logins. """
+    """
+        description: Provides a list of previous openvpn logins. 
+        arguments: 
+          - name: username
+            description: Will return a list of logins for the user with this username
+            required: True
+            type: string
+        output: A list of user logins. 
+    """
 
     success = call_master_cmd('openvpn.list_user_logins', kwarg = {'username' : username})
     if type(success) == str:
@@ -125,7 +161,14 @@ def list_user_logins(username):
 
 @tornado.gen.coroutine
 def download_vpn_cert(username, handler):
-    """Downloads the vpn certificate for the required user. Works by copying the file to /tmp/{username}_vpn.cert and then serving it through Tornado. """
+    """
+        description: Downloads the vpn certificate for the required user. Works by copying the file to /tmp/{username}_vpn.cert and then serving it through Tornado. 
+        arguments: 
+          - name: username
+            description: Returns the vpn cert for this username. 
+        output: Serves the vpn cert for the user. 
+        visible: True
+    """
     success = call_master_cmd('openvpn.get_config', kwarg = {'username' : username})
 
     cert_has_error = yield handler.has_error(cert)
@@ -172,21 +215,21 @@ def perform_server_action(handler, action, server_name, provider_name = '', acti
 @tornado.gen.coroutine
 def get_states(handler, dash_user):
     """
-    Gets all states from the datastore. Stats can be read from the consul kv store by doing `consul kv get -recurse states/`. 
-    This data is populated when doing `python -m va_master manage --reset-state. The state data is retrieved from the appinfo.json files in their respective folders. 
-    Each appinfo has needs to have a module, panels, name, description, version, icon, dependency, substate and path field. 
+        description: Gets all states from the datastore. Stats can be read from the consul kv store by doing `consul kv get -recurse states/`. This data is populated when doing `python -m va_master manage --reset-state. The state data is retrieved from the appinfo.json files in their respective folders. Each appinfo has needs to have a module, panels, name, description, version, icon, dependency, substate and path field. 
+        output: [{"name": "state_name", "icon": "fa-icon", "module": "va_module", "servers": [], "dependency": "", "version": "1.2", "path": "-", "panels": [{"name": "Friendly name", "key": "module.panel_name"}], "substates": ["substate"], "description": ""}]
     """
     
     datastore_handler = handler.datastore_handler
     states_data = yield datastore_handler.get_states_and_apps()
-    panels_data = yield panels.get_panels(handler, dash_user)
+    panels_data = yield panels.list_panels(datastore_handler, dash_user)
 
     default_panels = {'admin' : [], 'user' : []}
 
+    print (state['name'] for x in states_data)
     for state in states_data: 
         state_panel = [x for x in panels_data if x['name'] == state['name']]
         if not state_panel: 
-            raise Exception('%s was not found in the list of states : %s', (state['name'], str([x['name'] for x in panels_data])))
+            raise Exception(state['name'] + 'was not found in the list of states : ' + str([x['name'] for x in panels_data]))
         state_panel = state_panel[0]
         state['servers'] = state_panel['servers']
         state['panels'] = state.get('panels', default_panels)[dash_user['type']]
@@ -247,15 +290,20 @@ def install_app(datastore_handler, app_zip, app_json):
     yield install_new_app(datastore_handler, app_json, tmp_app)
 
 @tornado.gen.coroutine
+def get_app_args(datastore_handler, app_name):
+    app = yield datastore_handler.get_object(object_type = 'app', app_name = app_name)
+    raise tornado.gen.Return(app['required_args'])
+
+@tornado.gen.coroutine
 def change_app_type(datastore_handler, server_name, app_name):
     pass
 
 @tornado.gen.coroutine
 def validate_app_fields(handler):
     """
-    Creates a server by going through a validation scheme similar to that for adding providers. 
-    Requires that you send a step index as an argument, whereas the specifics for the validation are based on what driver you are using. 
-    If no provider_name is sent, creates a server on the va_standalone_servers provider, which is mostly invisible, and its servers are treated as standalone. 
+        description: Allows creating servers. Creates a server by going through a validation scheme similar to that for adding providers. Requires that you send a step index as an argument, whereas the specifics for the validation are based on what driver you are using. If no provider_name is sent, creates a server on the va_standalone_servers provider, which is mostly invisible, and its servers are treated as standalone. 
+        arguments: TODO
+        hide: True
     """
     provider, driver = yield providers.get_provider_and_driver(handler, handler.data.get('provider_name', 'va_standalone_servers'))
 

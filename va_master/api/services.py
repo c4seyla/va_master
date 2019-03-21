@@ -63,6 +63,10 @@ def get_all_service_definitions():
 
 @tornado.gen.coroutine
 def get_services_table_data(datastore_handler):
+    """
+        description: Returns Services in a format which is dashboard-friendly. 
+        output: '{"name" : "service_name", "address": "127.0.0.1", "port" : 22, "check" : ["list", "of", "checks"], "tags" : ["list", "of", "tags"]}'
+    """
     definitions = yield get_all_service_definitions()
     checks = yield get_all_checks()
 
@@ -111,7 +115,9 @@ def restart_consul():
 
 @tornado.gen.coroutine
 def get_services_and_monitoring():
-    """Returns a list of all services as well as monitoring data from all connected monitoring minions. """
+    """
+        description: Returns a list of all services as well as monitoring data from all connected monitoring minions.
+    """
     services = yield list_services()
     result = yield get_all_monitoring_data()
     result.update(services)
@@ -120,7 +126,7 @@ def get_services_and_monitoring():
 
 @tornado.gen.coroutine
 def list_services():
-    """Returns a list of services and their statuses from the consul REST API"""
+    """description: Returns a list of services and their statuses from the consul REST API"""
     try:
         services_url = consul_url + '/catalog/services'
         services = requests.get(services_url)
@@ -135,13 +141,59 @@ def list_services():
 
 @tornado.gen.coroutine
 def get_all_checks():
+    """
+        description: Returns a list of services along with all their checks.
+        output: 
+          test_check: 
+            - Node: va-master
+              CheckID: "service:test_check"
+              Name: "Service 'test_check' check"
+              ServiceName: test_check
+              Notes: ""
+              ModifyIndex: 180652
+              Status: passing 
+              ServiceID: test_check
+              Output: ""
+              CreateIndex: 180652
+        visible: True 
+    """
     services = yield list_services()
     all_checks = yield {x : get_service(x) for x in services.keys()}
     raise tornado.gen.Return(all_checks)
 
 @tornado.gen.coroutine
 def get_services_with_status(status = 'passing'):
-    """Returns a list of services with the specified status. """
+    """
+        description: Returns a list of services with the specified status. 
+        arguments: 
+          - name: status
+            type: string
+            required: False
+            default: passing
+            example: passing
+        output: 
+          - Node: va-master
+            CheckID: serfHealth
+            Name: Serf Health Status
+            ServiceName: ""
+            Notes: ""
+            ModifyIndex: 4
+            Status: passing
+            ServiceID: ""
+            Output: Agent alive and reachable
+            CreateIndex: 4}
+          - Node: va-master
+            CheckID: service:test_check
+            Name: "Service 'test_check' check"
+            ServiceName: test_check
+            Notes: ""
+            ModifyIndex: 180653
+            Status: passing
+            ServiceID: test_check
+            Output: ""
+            CreateIndex: 180652
+        visible: True
+    """
     try:
         status_url = consul_url + '/health/state/%s' % (status)
         services = requests.get(status_url)
@@ -156,7 +208,9 @@ def get_services_with_status(status = 'passing'):
 
 @tornado.gen.coroutine
 def get_service(service):
-    """Returns the service with the specified service name. """
+    """
+        description: Returns the service with the specified service name. 
+    """
     try:
         service_url = consul_url + '/health/checks/%s' % (service)
         service = requests.get(service_url)
@@ -292,7 +346,9 @@ def delete_service(name):
 
 @tornado.gen.coroutine
 def get_all_monitoring_data(datastore_handler):
-    """Returns all icinga data from connected monitoring minions. """
+    """
+        description: Returns all icinga data from connected monitoring minions. 
+    """
     cl = LocalClient()
     result = cl.cmd('G@role:monitoring', fun = 'va_monitoring.icinga2', tgt_type = 'compound')
     monitoring_errors = []

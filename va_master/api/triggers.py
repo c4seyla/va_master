@@ -1,156 +1,264 @@
+import uuid
 import tornado.gen
+from va_master.api.panels import panel_action_execute
+
+import documentation
 
 def get_paths():
     paths = {
         'get' : {
-            'triggers' : {'function' : list_triggers, 'args' : []},
+            'integrations' : {'function' : list_integrations, 'args' : ['datastore_handler']},
 #            'triggers/clear' : {'function' : clear_triggers, 'args' : ['provider_name']}, #Just for resting!!!
         },
         'post' : {
-            'triggers/add_trigger':  {'function' : add_trigger_api, 'args' : ['datastore_handler', 'new_trigger', 'provider_name']},
-            'triggers/triggered': {'function' : receive_trigger, 'args' : ['handler', 'provider_name', 'service', 'level', 'extra_kwargs']},
+            'integrations/add_trigger':  {'function' : add_trigger, 'args' : ['datastore_handler', 'receiver_app', 'donor_app', 'trigger']},
+            'integrations/triggered': {'function' : receive_trigger, 'args' : ['handler', 'event_name', 'receiver_app', 'donor_app', 'dash_user']},
 #            'triggers/load_triggers' : {'function' : load_triggers, 'args' : ['provider_name', 'triggers']},
-            'triggers/edit_trigger' : {'function' : edit_trigger, 'args' : ['provider_name', 'trigger_id', 'trigger']},
+#            'triggers/edit_trigger' : {'function' : edit_trigger, 'args' : ['provider_name', 'trigger_id', 'trigger']},
         },
         'delete' : {
-            'triggers/delete_trigger' : {'function' : delete_trigger, 'args' : ['provider_name', 'trigger_id']},
+#            'triggers/delete_trigger' : {'function' : delete_trigger, 'args' : ['provider_name', 'trigger_id']},
         },
     }
     return paths
 
+#   This is the current form, check below for how this will look. 
+
+# {
+#     "new_trigger" : 
+#     {
+#             "donor_app": "bamboo",
+#             "receiver_app": "deputy",
+#             "event": {
+#                 "name": "bamboo.create_employee",
+#                 "data_prefix": "payload.employee"
+#             },
+#             "conditions": [{
+#                 "args_map": {
+#                     "DateOfBirth": "bornDate",
+#                     "MainAddress": "address1"
+#                 },
+#                 "func_name": "user_birth_valid"
+#             }],
+#             "actions": [{
+#                 "args_map": {
+#                     "FirstName": "firstName",
+#                     "LastName": "lastName",
+#                     "DisplayName" : "displayName"
+#                 },
+#                 "func_name": "create_employee"
+#             }]
+#     }
+# }
+
+# So this is getting an overhaul, this is some pseudocode of how it's gonna work and all that jazz. 
+# Concept: App A triggers an Event. This Event is part of a Trigger; Each Trigger having an Event, Conditions and Actions. 
+# Trigger checks the Conditions, if all of them work, calls all its actions. 
+
+
+# Creating a Trigger: 
+# 1. Select an App
+#   - We list Apps via /api/apps
+#   ? Do we care _which_ specific server of that type sent a message? 
+#     ! For the moment no, any server of the same app activates the same trigger. 
+# 2. Select an Event
+#   - App functions which are documented and have type: event are listed like this
+#   - These functions are documented by definition, ergo have a list of arguments
+# 3. Choose Conditions
+#   - Skipped for now, but should be used eventually. 
+# 4. Chose Actions
+#   - Same as Events, except any documented function can be used as an Action. 
+#   - And we also have arguments for these. 
+#   - This all means we can map arguments to other arguments. 
+# 5. ???
+# 6. Profit!
+
+
+# Triggers used to be saved for a specific provider. So for instance, providers/va_clc would have a triggers key, as so - `providers/va_clc: {"provider_name" : "va_clc", ..., "triggers" : [{...}, ...]}. 
+# Granted, this was in the old-styled datastore, which we've abandoned since. Anyway, we will now have different keys for all the triggers, as so - `event_triggers/va_bamboo.new_user: {"triggers" : [], "name" : ""}`
+# Triggers are triggered based on their event name, so a call at `/api/triggers/event/va_bamboo.add_user` will trigger all Triggers with `va_bamboo.add_user` as their event name. 
+# Potentially also maybe have a list of events? 
+
+
+# In the end, triggers will have a slightly modified structure: 
+
 #   Example trigger: 
-#    new_trigger = { 
-#        "service" : "CPU", 
-#        "status" : "OK", 
+#    new_trigger = {
+#        "event" : {
+#            "name" : "va_bamboo.add_user", 
+#            #"provider_name" : "va_clc", # Triggers should now be strong independent entities, see above, but should also probably work somehow with drivers? 
+#        }
 #        "conditions" : [
 #            {
-#                "func" : "stats_cmp", #driver function
-#                "kwargs" : {"cpu" : 8, "cpu_operator" : "lt", "memory" : 8, "memory_operator" : "ge"}
-#            }, {
-#                "func" : "domain_full", 
-#                "kwargs" : {}
+#                "server_name" : "va_deputy", 
+#                "module" : "va_deputy_api", 
+#                "func" : "user_valid", 
+#                "args_map" : {"FirstName" : "firstName", "LastName" : "LastName"}
 #            }
 #        ],
 #        "actions" : [
 #            {
-#                "func" : "add_stats", #driver function
-#                "kwargs" : {"cpu" : 1, "add" : True}
-#            },
+#                "server_name" : "va_deputy", 
+#                #"module" : "va_deputy_api", #no need to select, since we choose the server, and the server has that type of app. 
+#                "func" : "add_user", 
+#                "args_map" : {
+#                    "FirstName" : "firstName", 
+#                    "Lastname" : "lastName", 
+#                    "DisplayName" : "displayName",
+#                }
+#            }
 #        ]
 #    }
     
+
+
+# Update: Previous trigger is out, now we have a differnet type of logic. Instead of focusing on triggers or events, we focus on integrations. So an integration is an object consisting of a donor app, receiver app, and a list of triggers. 
+
+
+#{
+#    "donor_app": "va-email",
+#    "receiver_app": "va-cloudshare",
+#    "events": [{
+#            "event_name": "va_email.add_user_recipient",
+#            "conditions": [{
+#                "func_name": "check_user_legit"
+#            }, {
+#                "func_name": "check_user_in_ldap"
+#            }],
+#            "actions": [{
+#                "func_name": "add_contact_vcard"
+#            }]
+#        },
+#        {
+#            "event_name": "va_email.add_user",
+#            "conditions": [{
+#                "func_name": "check_user_legit"
+#            }, {
+#                "func_name": "check_user_not_in_cloudshare"
+#            }],
+#            "actions": [{
+#                "func_name": "add_cloudshare_user"
+#            }]
+#        }
+#    ]
+#}
+
+
+
 @tornado.gen.coroutine
-def add_trigger(datastore_handler, provider_name, new_trigger):
+def add_trigger(datastore_handler, donor_app, receiver_app, trigger):
+    integration = yield datastore_handler.get_object('app_integration', donor_app = donor_app, receiver_app = receiver_app)
+    integration = integration or {'receiver_app' : receiver_app, 'donor_app' : donor_app, 'triggers' : []}
+    trigger['id'] = str(uuid.uuid4()).split('-')[0]
+    integration['triggers'].append(trigger)
+    yield datastore_handler.insert_object('app_integration', donor_app = donor_app, receiver_app = receiver_app, data = integration)
+
+@tornado.gen.coroutine
+def delete_integration(datastore_handler, event_name, integration_id):
+    event_integrations = yield datastore.get_objects('event_integrations', event_name = event_name)
+    event_integrations = {'integrations' : [x for x in event_integrations['integrations'] if x['id'] != integration_id]}
+    yield datastore_handler.insert_object('event_integrations', event_name = event_name, data = event_integrations)
+
+
+#TODO
+@tornado.gen.coroutine
+def edit_integration(datastore_handler, provider_name, integration_id, integration):
+    """Finds the integration by the id and sets it to the new integration's data. """
 
     provider = yield datastore_handler.get_provider(provider_name) 
 
-    if not provider.get('triggers'): provider['triggers'] = []
-    triggers_ids = [x.get('id', -1) for x in provider['triggers']] or [-1]
-    trigger_id = max(triggers_ids) + 1
-
-    new_trigger['id'] = trigger_id
-
-    provider['triggers'].append(new_trigger)
-
-    yield datastore_handler.create_provider(provider)
-    raise tornado.gen.Return(True)
-
-
-@tornado.gen.coroutine
-def add_trigger_api(datastore_handler, new_trigger, provider_name):
-    """Adds a trigger to the specified provider. """
-    result = yield add_trigger(datastore_handler, provider_name, new_trigger)
-    raise tornado.gen.Return(result)
-
-@tornado.gen.coroutine
-def delete_trigger(datastore_handler, provider_name, trigger_id):
-    """Deletes a trigger defined by the trigger_id. """
-    provider = yield datastore_handler.get_provider(provider_name) 
-
-    provider['triggers'] = [x for x in provider['triggers'] if x['id'] != trigger_id]
-    yield datastore_handler.create_provider(provider)
-
-
-@tornado.gen.coroutine
-def edit_trigger(datastore_handler, provider_name, trigger_id, trigger):
-    """Finds the trigger by the id and sets it to the new trigger's data. """
-
-    provider = yield datastore_handler.get_provider(provider_name) 
-
-    edited_trigger_index = provider['triggers'].index([x for x in provider['triggers'] if x['id'] == trigger_id][0])    
-    trigger['id'] = provider['triggers'][edited_trigger_index]['id']
-    provider['triggers'][edited_trigger_index] = trigger
+    edited_integration_index = provider['integrations'].index([x for x in provider['integrations'] if x['id'] == integration_id][0])    
+    integration['id'] = provider['integrations'][edited_integration_index]['id']
+    provider['integrations'][edited_integration_index] = integration
 
     yield datastore_handler.create_provider(provider)
 
-@tornado.gen.coroutine
-def clear_triggers(datastore_handler, provider_name):
-
-    provider = yield datastore_handler.get_provider(provider_name) 
-    provider['triggers'] = []
-    yield datastore_handler.create_provider(provider)
 
 @tornado.gen.coroutine
-def load_triggers(datastore_handler, provider_name, triggers):
-    yield clear_triggers(datastore_handler, provider_name)
-
-    for trigger in triggers: 
-        yield add_trigger(datastore_handler_handler, provider_name, trigger)
-
-    raise tornado.gen.Return(True)
-
+def list_integrations(datastore_handler):
+    """Returns an object with all providers and their respective integrations. """
+    events = yield datastore_handler.datastore.get_recurse('app_integration/')
+    raise tornado.gen.Return(events)
 
 @tornado.gen.coroutine
-def list_triggers(handler):
-    """Returns an object with all providers and their respective triggers. """
-    datastore_handler, drivers_handler = handler.datastore_handler, handler.drivers_handler
-
-    providers = yield datastore_handler.list_providers()
-    drivers = []
-    for provider in providers: 
-        driver = yield drivers_handler.get_driver_by_id(provider['driver_name'])
-        provider['functions'] = yield driver.get_driver_trigger_functions()
-
-    triggers = {h['provider_name'] : {'triggers' : h.get('triggers', []), 'functions' : h.get('functions', [])} for h in providers}
-#    print ('Triggers are : ', triggers)
-    raise tornado.gen.Return(triggers)
-
-
-@tornado.gen.coroutine
-def receive_trigger(handler, provider_name, service = '', level = '', extra_kwargs = {}):
-    """When called, will look for the trigger matching the service and level and take action based on the saved trigger's data. """
-    provider, driver = yield providers.get_provider_and_driver(handler, provider_name)
+def get_trigger_kwargs_from_data(handler, trigger, request_data, args_map, event_data_prefix = None):
+    print ('Getting ', trigger['event_name'].split('.'))
+    func_group, func_name = trigger['event_name'].split('.')
     
-    triggers = yield datastore_handler.get_triggers(provider_name)
-    triggers = [x for x in triggers if x['service'] == service and x['status'] == level]
+    event_func = yield documentation.get_function(handler, func_name, func_group)
+    event_func_prefix = event_func.get('data_prefix')
+    event_data_prefix =  event_data_prefix or event_func_prefix
 
-    if not triggers: 
-        exception_text = 'No trigger for service ' + service + ' and status ' + level
-        print (exception_text)
-        raise Exception(exception_text)
+    prefix_keys = event_data_prefix.split('.')
+    for prefix_key in prefix_keys:
+        if prefix_key: 
+            request_data = request_data[prefix_key]
 
+    kwargs = {key: request_data[args_map[key]] for key in args_map}
+    print ('FInal kwargs are : ', kwargs)
+    raise tornado.gen.Return(kwargs)        
+
+
+
+# This was used as a proof of concept to test out some stuff with the triggers
+# But we've changed the logic since, so this won't work. 
+
+@tornado.gen.coroutine
+def handle_app_trigger(handler, dash_user):
+    raise tornado.gen.Return()
+    print ('Handling ')
+    server_name = handler.data['server_name']
+    server = yield handler.datastore_handler.get_object('server', server_name = server_name)
+    print ('For ', server_name, server)
+    if server.get('role'):
+        server_state = yield handler.datastore_handler.get_object('state', name = server['role'])
+
+        module = server_state['module']
+
+        event_name = module + '.' + handler.data['action']
+        donor_app = server_state['role']
+        receiver_app = 'nesho'
+        print ('Event is : ', event_name)
+        result = yield receive_integration(handler, dash_user, event_name)
+        raise tornado.gen.Return(result)
+
+
+@tornado.gen.coroutine
+def receive_trigger(handler, dash_user, donor_app, receiver_app, event_name):
+
+    app_integrations = yield handler.datastore_handler.get_object('app_integration', donor_app = donor_app, receiver_app = receiver_app)
+    donor_app = app_integrations['donor_app']
+    receiver_app = app_integrations['receiver_app']
+
+    print ('I AM IN TRIGGER WITH ', app_integrations)
+    
+    triggers = app_integrations.get('triggers', [])
     results = []
     for trigger in triggers: 
+        if trigger['event_name'] != event_name: 
+            print('Expecting ', event_name, ' but receiving : ', trigger['event_name'])
+            continue
+        all_servers = yield handler.datastore.get_recurse('server/')
+        servers_to_call = [x for x in all_servers if x.get('role', '') == receiver_app] 
+
         conditions_satisfied = True
-        print ('Working with trigger: ', trigger)
-        for condition in trigger['conditions']:
-            condition_kwargs = {'provider' : provider, 'server_name' : server_name}
-            for kwarg in trigger['extra_kwargs']: 
-                condition_kwargs[kwarg] = extra_kwargs.get(kwarg)
-            result = yield getattr(driver, condition)(**condition_kwargs)
-            print ('Result from ', condition, ' is ', result)
-            if not result: 
-                conditions_satisfied = False
-                break
-        if conditions_satisfied:
-            for action in trigger['actions']:
-                action_kwargs = {'server_name' : server_name, 'provider' : provider}
-                for kwarg in trigger['extra_kwargs'] : 
-                    action_kwargs[kwarg] = extra_kwargs.get(kwarg)
-                try:
-                    result = yield getattr(driver, action)(**action_kwargs)
-                except: 
-                    import traceback
-                    traceback.print_exc()
-                results.append(result)
+        for condition in trigger.get('conditions', []): 
+            pass #TODO check condition
+
+        print ('Conditions good. ')
+        if conditions_satisfied: 
+            for server in servers_to_call:
+                for action in trigger['actions']: 
+                    print ('Getting kwargs. ')
+                    kwargs = yield get_trigger_kwargs_from_data(handler, trigger, handler.data, action['args_map'])
+                    print ('Got em : ', kwargs)
+                    kwargs.update(action.get('extra_args', {}))
+                    print ('Calling integration ')
+                    print ('salt ' +  server['server_name'] + ' ' + action['func_name']  + ' ' + str(handler.data.get('args', [])) + ' ' + str(kwargs))
+                    new_result = ''
+#                    new_result = yield panel_action_execute(handler, dash_user = dash_user, server_name = server['server_name'], action = action['func_name'], kwargs = kwargs, args = handler.data.get('args', []))
+                    print ('Result : ', new_result)
+                    results.append(new_result)
+
     raise tornado.gen.Return(results)
+

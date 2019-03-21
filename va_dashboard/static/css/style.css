@@ -1078,3 +1078,59 @@ label {
 .clickable:hover {
 	color: #4d5259;
 }
+
+/* API Documentation */
+
+.sidebar-width{
+    width: 35%;
+    margin-right: 5%;
+    display: inline-block; /* Make elements inside the container behave like table cells */
+    vertical-align: top;
+}
+
+.details-api {
+    width: 55%;
+    margin-right: 5%;
+    display: inline-block; /* Make elements inside the container behave like table cells */
+    vertical-align: top;
+}
+
+.col-container {
+    display: table;
+    width: 100%;
+}
+
+/*Accordion */
+.accordion {
+    background-color: #f5f5f5;
+    color: black;
+    cursor: pointer;
+    padding: 18px;
+    width: 100%;
+    text-align: left;
+    border: 1px solid;
+    outline: none;
+    transition: 0.4s;
+}
+
+
+/* Style the accordion panel. Note: hidden by default */
+.panel {
+    background-color: #f5f5f5;
+    display: none;
+    overflow: hidden;
+}
+
+.noselect {
+  -webkit-touch-callout: none; /* iOS Safari */
+    -webkit-user-select: none; /* Safari */
+     -khtml-user-select: none; /* Konqueror HTML */
+       -moz-user-select: none; /* Firefox */
+        -ms-user-select: none; /* Internet Explorer/Edge */
+            user-select: none; /* Non-prefixed version, currently
+                                  supported by Chrome and Opera */
+}
+
+#mynetwork {
+      height: 500px;
+}
