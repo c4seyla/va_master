@@ -14,12 +14,12 @@ class VATestBase(object):
     function_results = []
 
 
-    def __init__(self, va_url, va_user = 'admin', va_pass = 'admin', token = ''):
+    def __init__(self, va_url = 'https://127.0.0.1:443', va_user = 'admin', va_pass = 'admin', token = ''):
         if token: 
             self.api = APIManager(va_url = va_url, token = token, verify = False)
         else: 
             self.api = APIManager(va_url = va_url, va_user='admin', va_pass='admin', verify=False)
-        
+
     def assert_success(self, result):
         assert type(result) == dict, "Result returned was not a dictionary: %s" % (str(result))
         assert(result['success']), "Result was unsuccessful - %s" % (str(result))
