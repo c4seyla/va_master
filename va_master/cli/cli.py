@@ -308,8 +308,6 @@ def handle_test_api(args):
     from va_master.tests import va_panels_tests, va_providers_tests, va_states_tests, va_test_base, va_testcase, va_users_tests, va_vpn_tests, va_services_tests
 
     tests = args.get('tests')
-
-    api_test_suite = unittest.TestSuite()
     all_tests = [
             va_panels_tests.VAPanelsTests,
             va_providers_tests.VAProvidersTests,
@@ -322,15 +320,12 @@ def handle_test_api(args):
     if tests: 
         all_tests = [x for x in all_tests for t in tests if t in str(x)]
 
-    for t in all_tests: 
-        t.set_password(args.get('password', 'admin'))
-        api_test_suite.addTest(unittest.TestLoader().loadTestsFromTestCase(t))
-
-    unittest.TextTestRunner(verbosity=5).run(api_test_suite)
+    for t in all_tests:
+        t = t()
+        t.do_tests()
 
 
 def entry():
-    print ('In entry')
     parser = argparse.ArgumentParser(description='A VapourApps client interface')
     subparsers = parser.add_subparsers(help='action')
 
