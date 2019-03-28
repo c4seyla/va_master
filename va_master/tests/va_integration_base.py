@@ -16,7 +16,7 @@ class VATestBase(object):
         if token: 
             self.api = APIManager(va_url = va_url, token = token, verify = False)
         else: 
-            self.api = APIManager(va_url = va_url, va_user='admin', va_pass='admin', verify=False)
+            self.api = APIManager(va_url = va_url, va_user=va_user, va_pass=va_pass, verify=False)
 
         # self.test_functions is a list of tuples, where each tuple is a function-kwargs pair. 
         self.test_functions = []
