@@ -321,7 +321,7 @@ def handle_test_api(args):
         all_tests = [x for x in all_tests for t in tests if t in str(x)]
 
     for t in all_tests:
-        t = t()
+        t = t(va_pass = args.get('password'))
         t.do_tests()
 
 
