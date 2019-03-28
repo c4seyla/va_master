@@ -40,6 +40,3 @@ class VAServicesTests(VATestBase):
         services = all_checks['data'].keys()
         assert (new_service['name'] not in services), 'Service %s was still in list %s even after being deleted. '
 
-
-t = VAServicesTests(va_url = 'https://127.0.0.1:443')
-t.do_tests()

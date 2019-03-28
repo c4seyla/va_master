@@ -68,5 +68,3 @@ class VAUsersTests(VATestBase):
         delete_group = self.api.api_call('/panels/delete_group', method = 'post', data = {'group_name' : group['name']})
         self.assert_success(delete_group)
 
-t = VAUsersTests()
-t.do_tests()

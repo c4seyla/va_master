@@ -62,6 +62,3 @@ class VAProvidersTests(VATestBase):
         self.test_keys_in_set(providers['data'], required_keys, data_id_key = 'provider_name')
 
 
-
-t = VAProvidersTests(va_url = 'https://127.0.0.1:443')
-t.do_tests()
