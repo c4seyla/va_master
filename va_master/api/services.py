@@ -249,9 +249,7 @@ def create_service_from_state(state_name, service_name, service_address, service
 def add_service_with_definition(service_definition, service_name):
     """Adds a service with a definition. The definition has the standard consul service format. """
     service_text = json.dumps(service_definition)
-    print ('Dumping : ', service_text)
     service_conf = consul_dir + '/%s.json' % service_name
-
     with open(service_conf, 'w') as f:
         f.write(service_text)
 
