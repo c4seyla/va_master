@@ -305,7 +305,7 @@ def handle_new_user(args):
    
 def handle_test_api(args):
     from va_master import tests
-    from va_master.tests import va_panels_tests, va_providers_tests, va_states_tests, va_test_base, va_testcase, va_users_tests, va_vpn_tests, va_services_tests
+    from va_master.tests import va_panels_tests, va_providers_tests, va_states_tests, va_users_tests, va_vpn_tests, va_services_tests
 
     tests = args.get('tests')
     all_tests = [
@@ -321,7 +321,7 @@ def handle_test_api(args):
         all_tests = [x for x in all_tests for t in tests if t in str(x)]
 
     for t in all_tests:
-        t = t()
+        t = t(va_pass = args.get('password'))
         t.do_tests()
 
 
