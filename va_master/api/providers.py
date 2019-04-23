@@ -356,6 +356,8 @@ def get_providers_info(handler, dash_user, get_billing = True, get_servers = Tru
     standalone_provider = yield datastore_handler.get_provider('va_standalone_servers')
     standalone_driver = yield drivers_handler.get_driver_by_id('generic_driver')
     standalone_servers = yield standalone_driver.get_servers(standalone_provider)
+    standalone_provider_data = yield standalone_driver.get_provider_data({'provider_name' : 'va_standalone_servers'})
+
 
     for s in standalone_servers: 
         datastore_server = yield datastore_handler.get_object(object_type = 'server', server_name = server.get('server_name', server.get('hostname', '')))
@@ -369,6 +371,8 @@ def get_providers_info(handler, dash_user, get_billing = True, get_servers = Tru
         {
             "provider_name" : "", 
             "servers" : [x for x in standalone_servers if x.get('location', 'va-master') == l], 
+            "provider_usage" : standalone_provider_data['provider_usage'],
+            "status" : standalone_provider_data['status'],
             "location" : l,
         } for l in standalone_locations]
     providers_info += standalone_providers

@@ -19,5 +19,3 @@ class VAStatesTests(VATestBase):
 
         self.test_keys_in_set(states['data'], required_keys, warning_keys, data_id_key = 'name')
 
-t = VAStatesTests(va_url = 'https://127.0.0.1:443')
-t.do_tests()

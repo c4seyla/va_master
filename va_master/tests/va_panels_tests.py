@@ -16,5 +16,3 @@ class VAPanelsTests(VATestBase):
         required_keys = {'servers', 'panels', 'name', 'icon'}
         self.test_keys_in_set(panels['data'], required_keys, data_id_key = 'name')
 
-t = VAPanelsTests(va_url = 'https://127.0.0.1:443')
-t.do_tests()

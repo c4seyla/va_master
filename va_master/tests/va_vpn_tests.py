@@ -20,5 +20,3 @@ class VAVPNTests(VATestBase):
         a = self.api.api_call('/apps/vpn_status', method='get', data={})
         self.assert_success(a)
 
-t = VAVPNTests()
-t.do_tests()

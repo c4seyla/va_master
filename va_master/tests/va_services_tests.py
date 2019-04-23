@@ -35,11 +35,10 @@ class VAServicesTests(VATestBase):
         self.assert_success(result)
 
         all_checks = self.api.api_call('/services/get_services_with_checks')
-        self.assert_all_checks(all_checks)
+        self.assert_success(all_checks)
+#        self.assert_all_checks(all_checks)
 
         services = all_checks['data'].keys()
         assert (new_service['name'] not in services), 'Service %s was still in list %s even after being deleted. '
 
 
-t = VAServicesTests(va_url = 'https://127.0.0.1:443')
-t.do_tests()
