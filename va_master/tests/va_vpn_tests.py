@@ -1,20 +1,22 @@
-import unittest
-import time
-import sys
+import time, sys
 from va_api import APIManager
 import warnings
-from va_test_base import VATestClass
+from va_integration_base import VATestBase
 
-class VAVPNTests(VATestClass):
+class VAVPNTests(VATestBase):
+    def __init__(self, *args, **kwargs):
+        super(VAVPNTests, self).__init__(*args, **kwargs)
+
+        self.test_functions = [
+            (self.test_list_vpn_users, {}), 
+            (self.test_get_vpn_status, {}),
+        ]
+
     def test_list_vpn_users(self):
         a = self.api.api_call('/apps/vpn_users', method='get', data={})
-        self.assertTrue(a['success'])
+        self.assert_success(a)
 
     def test_get_vpn_status(self):
         a = self.api.api_call('/apps/vpn_status', method='get', data={})
-        self.assertTrue(a['success'])
+        self.assert_success(a)
 
-
-if __name__ == '__main__':
-    suite = unittest.TestLoader().loadTestsFromTestCase(VAVPNTests)
-    unittest.TextTestRunner(verbosity=5).run(suite)

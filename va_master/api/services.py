@@ -249,9 +249,7 @@ def create_service_from_state(state_name, service_name, service_address, service
 def add_service_with_definition(service_definition, service_name):
     """Adds a service with a definition. The definition has the standard consul service format. """
     service_text = json.dumps(service_definition)
-    print ('Dumping : ', service_text)
     service_conf = consul_dir + '/%s.json' % service_name
-
     with open(service_conf, 'w') as f:
         f.write(service_text)
 
@@ -283,6 +281,7 @@ def generate_check_from_preset(preset, server, **kwargs):
         available_args.update(kwargs)
         script_kwargs = {x : available_args[x] for x in expected_args} 
         preset['script'] = preset['script'].format(**script_kwargs)
+        preset['args'] = preset.pop('script').split(' ')
 
     #Finally, if there are any keys in the preset that are empty, those are values we want to take from the dashboard, such as timeout, interval etc. 
     for key in preset: 
@@ -302,12 +301,13 @@ def add_service_with_presets(datastore_handler, presets, server, name = '', addr
     port = port or 443
     tags = tags.split(',')
 
-    #If server is a string, and address is not set, we assume the server is a salt minion and we just take the data from mine. 
-    minion_info = {}
-    if type(server) in [str, unicode] and server: 
-        minion_info = yield apps.get_app_info(server)
-
     if not address: 
+        #If server is a string, and address is not set, we assume the server is a salt minion and we just take the data from mine. 
+        minion_info = {}
+        if type(server) in [str, unicode] and server: 
+            minion_info = yield apps.get_app_info(server)
+
+
         if not minion_info: 
             raise Exception ("No `address` argument found, and %s did not return mine data (maybe it's not a minion?). Either use the ip address of the server or its minion id. " % (server))
         address = minion_info['ip4_interfaces']['eth0'][0]

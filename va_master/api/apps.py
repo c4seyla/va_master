@@ -220,7 +220,7 @@ def get_states(handler, dash_user):
     
     datastore_handler = handler.datastore_handler
     states_data = yield datastore_handler.get_states_and_apps()
-    panels_data = yield panels.get_panels(datastore_handler, dash_user)
+    panels_data = yield panels.list_panels(datastore_handler, dash_user)
 
     default_panels = {'admin' : [], 'user' : []}
 

@@ -171,8 +171,11 @@ class ApiHandler(tornado.web.RequestHandler):
     def handle_func(self, api_func, data):
         try:
             api_func, api_args = api_func.get('function'), api_func.get('args')
+            print ('Api func : ', api_func, ' args ', api_args)
             api_kwargs = {x : data.get(x) for x in api_args if x in data.keys()} or {}
+            print ('Kwargs are : ', api_kwargs)
             api_kwargs.update({x : self.utils[x] for x in api_args if x in self.utils})
+            print ('Now are : ', api_kwargs)
 
             yield self.check_arguments(api_func, api_args, api_kwargs.keys())
 

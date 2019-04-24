@@ -11,7 +11,7 @@ from salt.client import LocalClient
 def get_paths():
     paths = {
         'get' : {
-            'panels' : {'function' : get_panels, 'args' : ['datastore_handler', 'dash_user']}, 
+            'panels' : {'function' : list_panels, 'args' : ['datastore_handler', 'dash_user']}, 
             'panels/stats' : {'function' : get_panels_stats, 'args' : ['handler', 'dash_user']},
             'panels/get_panel' : {'function' : get_panel_for_user, 'args' : ['handler', 'server_name', 'panel', 'provider', 'args', 'dash_user']},
             'panels/get_services_and_logs' : {'function' : get_services_and_logs, 'args' : ['datastore_handler']},
@@ -96,7 +96,7 @@ def sync_salt_minions(datastore_handler, dash_user):
                 panel['servers'].append(minion)
             yield datastore_handler.insert_object(object_type = panel_type, name = minions[minion], data = panel)
 
-        panels = yield datastore_handler.get_panels(user_type)
+        panels = yield datastore_handler.list_panels(user_type)
         print ('Now clearing panels')
         for panel in panels: 
             panel_type = user_type + '_panel'
@@ -125,6 +125,12 @@ def remove_panel(datastore_handler, server_name, dash_user, role = None):
 
 @tornado.gen.coroutine
 def list_panels(datastore_handler, dash_user):
+    """ 
+        description: Returns a list of the panels for the logged in user. Panels are retrieved from the panels/<user_type>/<role> key in the datastore, with user_type being user/admin and is retrieved from the auth token, and role being one of the apps added to the datastore. See the apps documentation for more info. 
+        output: '[{"servers": [], "panels": [{"name": "User-friendly name", "key": "module.panel_name"}], "name": "role_name", "icon": "fa-icon"}]'
+        visible: True
+    """
+
     panels = yield datastore_handler.get_panels(dash_user['type'])
 
     raise tornado.gen.Return(panels)
@@ -415,17 +421,6 @@ def get_panels_stats(handler, dash_user):
     result = {'providers' : len(providers), 'servers' : len(servers), 'services' : serv, 'vpn' : len(vpn['users']), 'apps' : len(states), "integrations" : len(integrations)}
     raise tornado.gen.Return(result)
 
-
-@tornado.gen.coroutine
-def get_panels(datastore_handler, dash_user):
-    """ 
-        description: Returns a list of the panels for the logged in user. Panels are retrieved from the panels/<user_type>/<role> key in the datastore, with user_type being user/admin and is retrieved from the auth token, and role being one of the apps added to the datastore. See the apps documentation for more info. 
-        output: '[{"servers": [], "panels": [{"name": "User-friendly name", "key": "module.panel_name"}], "name": "role_name", "icon": "fa-icon"}]'
-        visible: True
-    """
-    panels = yield list_panels(datastore_handler, dash_user)
-
-    raise tornado.gen.Return(panels)
 
 @tornado.gen.coroutine
 def get_panel_for_user(handler, panel, server_name, dash_user, args = [], kwargs = {}):
