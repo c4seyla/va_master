@@ -177,6 +177,7 @@ def panel_action_execute(handler, server_name, action, args = [], dash_user = {}
                 raise Exception('User attempting to execute a salt function but does not have permission. ')
 
         if not module:
+            print ('Getting role for ', server_name)
             state = get_minion_role(server_name) 
 
             state = yield datastore_handler.get_state(name = state)
@@ -185,12 +186,18 @@ def panel_action_execute(handler, server_name, action, args = [], dash_user = {}
 
         cl = salt.client.LocalClient()
         result = cl.cmd(server_name, module + '.' + action , arg = args, kwarg = kwargs, timeout = timeout)
-
+        
         result = result.get(server_name)
     #        raise Exception('Calling %s on %s returned an error. ' % (module + '.' + action, server_name))
 
     else: 
         result = yield handle_app_action(datastore_handler, server, action, args, kwargs)
+
+    #This is very finicky design. We import the function here to resolve circular imports with integrations (see TODO there as well)
+    #TODO find a way to properly resolve this, probably by writing another module somewhere somehow. 
+    from integrations import handle_app_trigger
+
+    yield handle_app_trigger(handler, dash_user, server_name, action)
 
     raise tornado.gen.Return(result)
 
