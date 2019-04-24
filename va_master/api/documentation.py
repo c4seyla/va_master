@@ -27,10 +27,9 @@ def function_is_documented(doc, func_name = ''):
         
     """
 
-
     #This is kind of a testing thing, if I'm creating a function and it appears not to be documented, just put the functino name here and it will print out stuff which may be useful. 
-    test_function = 'create_employee'
-    testing = False
+    test_function = 'launch_app'
+    testing = False 
 
     if func_name == test_function: 
         print ('Testing ', test_function)
@@ -38,7 +37,10 @@ def function_is_documented(doc, func_name = ''):
         testing = True
 
     #Sometimes we straight up pass the docstring to this function. 
-    if callable(doc): 
+    if callable(doc):
+        print (doc.func_name)
+        if doc.func_name == test_function: 
+            testing = True
         doc = doc.__doc__
         if testing: 
             print ('Doc was ', doc)
@@ -83,9 +85,9 @@ def function_is_documented(doc, func_name = ''):
 
 def get_master_functions(handler):
     functions = {
-        method : [
-            [path, yaml.load(handler.paths[method][path]['function'].__doc__)] for path in handler.paths[method] if function_is_documented(handler.paths[method][path]['function'])
-        ] for method in ['post', 'get']
+        'va-master' : [
+            [path, yaml.load(handler.paths[method][path]['function'].__doc__)] for method in ['post', 'get'] for path in handler.paths[method] if function_is_documented(handler.paths[method][path]['function'])
+        ]
     }
     return functions
 
@@ -94,7 +96,8 @@ def get_salt_functions():
 
     salt_functions = cl.cmd('G@role:va-master', fun = 'va_utils.get_documented_module_functions', tgt_type = 'compound')
     salt_functions = salt_functions.items()[0][1]
-    print ('Salt : ', salt_functions)
+    if type(salt_functions) in [unicode, str]: 
+        return []
     salt_functions = {
         method : [[function[0], yaml.load(function[1])] for function in salt_functions[method] if function_is_documented(function[1], func_name = function[0])]
     for method in salt_functions}
@@ -190,8 +193,6 @@ def get_api_functions(datastore_handler):
     for app in apps:
         imported_module = importlib.import_module(app['module'])
         module_functions = inspect.getmembers(imported_module, inspect.isfunction)
-#        print (module_functions)
-#        print ('Calling documented with ', [x[1] for x in module_functions])
         module_functions = [[x[0], yaml.load(x[1].__doc__)] for x in module_functions if function_is_documented(x[1], func_name = x[0])]
         all_functions[app['module']] = module_functions
 

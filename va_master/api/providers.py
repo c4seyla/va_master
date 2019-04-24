@@ -360,6 +360,7 @@ def get_providers_info(handler, dash_user, get_billing = True, get_servers = Tru
 
 
     for s in standalone_servers: 
+        print ('Have : ', s, ' for servers')
         datastore_server = yield datastore_handler.get_object(object_type = 'server', server_name = server.get('server_name', server.get('hostname', '')))
         s.update(datastore_server)
 
@@ -375,6 +376,8 @@ def get_providers_info(handler, dash_user, get_billing = True, get_servers = Tru
             "status" : standalone_provider_data['status'],
             "location" : l,
         } for l in standalone_locations]
+
+    print ('Standalone are : ', standalone_providers)
     providers_info += standalone_providers
 
     if sort_by_location: 
@@ -385,8 +388,6 @@ def get_providers_info(handler, dash_user, get_billing = True, get_servers = Tru
             [x for x in providers_info if x.get('location', 'va-master') == l] for l in [x.get('location', 'va-master')
          for x in providers_info]}
 
-
-    print ('Info is : ', providers_info)
     raise tornado.gen.Return(providers_info)
 
 
