@@ -213,6 +213,9 @@ class ApiHandler(tornado.web.RequestHandler):
     # The way triggers work would be fine if the they were actually triggered where they're supposed to be. But they're not. 
     # So I'm working around it. If the call comes from an app, I pass it to the triggers/triggered call. 
     # It probably shouldn't work like that, but from past experience, I feel it's gonna stay this way. 
+
+    #NOTE We're going with this approach after all, but this will be handled in panels, not here. 
+    #TODO remove this function maybe, it's orphaned now. 
     @tornado.gen.coroutine
     def check_and_resolve_trigger(self, api_func, dash_user):
         if api_func['function'] == panel_action:
@@ -252,7 +255,7 @@ class ApiHandler(tornado.web.RequestHandler):
                     data.update(predef_args)
 
             result = yield self.handle_func(api_func, data)
-            yield self.check_and_resolve_trigger(api_func, data['dash_user'])
+#            yield self.check_and_resolve_trigger(api_func, data['dash_user'])
 
             status = self.status or 200
             yield self.log_message(path = path, data = data, func = api_func['function'], result = {})#log_result)

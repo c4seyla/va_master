@@ -1,6 +1,5 @@
 import uuid
 import tornado.gen
-from va_master.api.panels import panel_action_execute
 
 import documentation
 
@@ -181,20 +180,29 @@ def list_integrations(datastore_handler):
     raise tornado.gen.Return(events)
 
 @tornado.gen.coroutine
-def get_trigger_kwargs_from_data(handler, trigger, request_data, args_map, event_data_prefix = None):
+def get_trigger_kwargs_from_data(handler, trigger, request_data, args_map, event_data_prefix = ''):
     print ('Getting ', trigger['event_name'].split('.'))
+    print ('Request data is : ', request_data)
     func_group, func_name = trigger['event_name'].split('.')
-    
+   
+    print ('Getting ', func_name, func_group)
     event_func = yield documentation.get_function(handler, func_name, func_group)
-    event_func_prefix = event_func.get('data_prefix')
+    print ('Have : ', event_func)
+    event_func_prefix = event_func.get('data_prefix', '')
     event_data_prefix =  event_data_prefix or event_func_prefix
 
     prefix_keys = event_data_prefix.split('.')
     for prefix_key in prefix_keys:
         if prefix_key: 
-            request_data = request_data[prefix_key]
+            request_data = request_data.get(prefix_key)
+            if not request_data: 
+                print ('Key ', prefix_key, ' not found in ', request_data)
+                raise tornado.gen.Return({})
 
-    kwargs = {key: request_data[args_map[key]] for key in args_map}
+
+    #NOTE this line is kinda fishy - if the request data doesn't contain all keys, we just ignore the missing ones. 
+    #This was added so that the dashboard calls which send positional arguments don't mess everything up. However, I should think of a better way to handle that. 
+    kwargs = {key: request_data.get(args_map[key]) for key in args_map if request_data.get(args_map[key])}
     print ('FInal kwargs are : ', kwargs)
     raise tornado.gen.Return(kwargs)        
 
@@ -204,22 +212,28 @@ def get_trigger_kwargs_from_data(handler, trigger, request_data, args_map, event
 # But we've changed the logic since, so this won't work. 
 
 @tornado.gen.coroutine
-def handle_app_trigger(handler, dash_user):
-    raise tornado.gen.Return()
+def handle_app_trigger(handler, dash_user, server_name, action):
     print ('Handling ')
-    server_name = handler.data['server_name']
-    server = yield handler.datastore_handler.get_object('server', server_name = server_name)
+    datastore_handler = handler.datastore_handler
+
+    server = yield datastore_handler.get_object('server', server_name = server_name)
     print ('For ', server_name, server)
     if server.get('role'):
-        server_state = yield handler.datastore_handler.get_object('state', name = server['role'])
+        server_state = yield datastore_handler.get_object('state', name = server['role'])
 
         module = server_state['module']
 
-        event_name = module + '.' + handler.data['action']
-        donor_app = server_state['role']
-        receiver_app = 'nesho'
-        print ('Event is : ', event_name)
-        result = yield receive_integration(handler, dash_user, event_name)
+        event_name = module + '.' + action
+        print ('State : ', server_state)
+        donor_app = server_state['name']
+        print ('Looking for integrations for ', donor_app)
+        integrations = yield handler.datastore.get_recurse('app_integration/%s' % (donor_app, ))
+        print ('Found : ', integrations)
+        result = {}
+        for integration in integrations:
+            app_result = yield receive_trigger(handler, dash_user, donor_app, integration['receiver_app'], event_name)
+            result[integration['receiver_app']] = app_result
+
         raise tornado.gen.Return(result)
 
 
@@ -227,38 +241,47 @@ def handle_app_trigger(handler, dash_user):
 def receive_trigger(handler, dash_user, donor_app, receiver_app, event_name):
 
     app_integrations = yield handler.datastore_handler.get_object('app_integration', donor_app = donor_app, receiver_app = receiver_app)
-    donor_app = app_integrations['donor_app']
-    receiver_app = app_integrations['receiver_app']
 
     print ('I AM IN TRIGGER WITH ', app_integrations)
     
     triggers = app_integrations.get('triggers', [])
     results = []
     for trigger in triggers: 
-        if trigger['event_name'] != event_name: 
+        if trigger['event_name'] == event_name: 
+            print ('Delivering ', event_name, ' because my trigger wanted ', trigger['event_name'])
+            all_servers = yield handler.datastore.get_recurse('server/')
+            servers_to_call = [x for x in all_servers if x.get('role', '') == receiver_app] 
+
+            conditions_satisfied = True
+            for condition in trigger.get('conditions', []): 
+                pass #TODO check condition
+
+            print ('Conditions good. ')
+            if conditions_satisfied: 
+                for server in servers_to_call:
+                    for action in trigger['actions']: 
+                        print ('Action is : ', action)
+                        print ('Getting kwargs. ')
+                        kwargs = yield get_trigger_kwargs_from_data(handler, trigger, handler.data, action['args_map'])
+                        print ('Got em : ', kwargs)
+                        kwargs.update(action.get('extra_args', {}))
+                        print ('Calling integration ')
+                        print ('salt ' +  server['server_name'] + ' '  + action['func_name']  + ' ' + str(handler.data.get('args', [])) + ' ' + str(kwargs))
+                        new_result = ''
+
+                        #NOTE: This is here to resolve circular imports with panels
+                        #This is a pretty bad solution only to temporarily solve a problem, and we should resolve this properly. 
+                        #TODO probably write another module (a handler maybe?) dedicated to executing panel actions which will hold panel_action_execute so both panels.py and integrations.py can import it
+                        #I don't know what the logical idea behind this module would be, but I'll think of something. 
+                        from va_master.api.panels import panel_action_execute
+
+                        new_result = yield panel_action_execute(handler, dash_user = dash_user, server_name = server['server_name'], action = action['func_name'], kwargs = kwargs, args = handler.data.get('args', []))
+                        print ('Result : ', new_result)
+                        results.append(new_result)
+
+        else:
             print('Expecting ', event_name, ' but receiving : ', trigger['event_name'])
-            continue
-        all_servers = yield handler.datastore.get_recurse('server/')
-        servers_to_call = [x for x in all_servers if x.get('role', '') == receiver_app] 
 
-        conditions_satisfied = True
-        for condition in trigger.get('conditions', []): 
-            pass #TODO check condition
-
-        print ('Conditions good. ')
-        if conditions_satisfied: 
-            for server in servers_to_call:
-                for action in trigger['actions']: 
-                    print ('Getting kwargs. ')
-                    kwargs = yield get_trigger_kwargs_from_data(handler, trigger, handler.data, action['args_map'])
-                    print ('Got em : ', kwargs)
-                    kwargs.update(action.get('extra_args', {}))
-                    print ('Calling integration ')
-                    print ('salt ' +  server['server_name'] + ' ' + action['func_name']  + ' ' + str(handler.data.get('args', [])) + ' ' + str(kwargs))
-                    new_result = ''
-#                    new_result = yield panel_action_execute(handler, dash_user = dash_user, server_name = server['server_name'], action = action['func_name'], kwargs = kwargs, args = handler.data.get('args', []))
-                    print ('Result : ', new_result)
-                    results.append(new_result)
 
     raise tornado.gen.Return(results)
 
