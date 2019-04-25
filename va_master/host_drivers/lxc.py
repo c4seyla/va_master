@@ -14,6 +14,8 @@ from tornado.httpclient import AsyncHTTPClient, HTTPRequest
 import tornado.gen
 import json, datetime, subprocess, os
 
+from va_master.api.integrations import trigger_all_integrations
+
 from pylxd import Client
 
 #TODO need to see how to actually write the provider conf
@@ -348,7 +350,9 @@ class LXCDriver(base.DriverBase):
                 }
             }
 
+            yield trigger_all_integrations(handler, dash_user, event_name = 'va-master.apps/launch_app', kwargs = {'status' : 'Init'})
             new_container = cl.containers.create(lxc_config, wait = True)
+
             print ('status is ', new_container.status)
 
             ssh_path = '/root/.ssh'
@@ -358,7 +362,12 @@ class LXCDriver(base.DriverBase):
                 key = f.read()
 
             if data.get('role'): 
+                yield trigger_all_integrations(handler, dash_user, event_name = 'va-master.apps/launch_app', kwargs = {'status' : 'Started'})
+
                 new_container.start(wait = True)
+
+                yield trigger_all_integrations(handler, dash_user, event_name = 'va-master.apps/launch_app', kwargs = {'status' : 'Created'})
+
                 new_container.execute(['mkdir', '-p', ssh_path])
                 fm = new_container.FilesManager(cl, new_container)
                 fm.put(keys_path, key)
@@ -371,9 +380,14 @@ class LXCDriver(base.DriverBase):
                     new_container.execute(['apt-get', '-y', 'install', 'openssh-server'])
                 except : #Sometimes there is a weird and cryptic "Not Found" exception. TODO: find it and pass only on it 
                     pass
+                
+                yield trigger_all_integrations(handler, dash_user, event_name = 'va-master.apps/launch_app', kwargs = {'status' : 'ManagedSSH'})
+
                 ip = ip[0]
                 print ('IP is : ', ip)
                 yield apps.add_minion_to_server(self.datastore_handler, data['server_name'], ip, data['role'], key_filename = '/root/.ssh/va-master.pem', username = 'root')
+                yield trigger_all_integrations(handler, dash_user, event_name = 'va-master.apps/launch_app', kwargs = {'status' : 'ManagedSalt'})
+
             new_container = self.container_to_dict(new_container, provider['provider_name'])
             raise tornado.gen.Return(new_container)
         except:

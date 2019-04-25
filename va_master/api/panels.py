@@ -197,7 +197,7 @@ def panel_action_execute(handler, server_name, action, args = [], dash_user = {}
     #        raise Exception('Calling %s on %s returned an error. ' % (module + '.' + action, server_name))
 
     else: 
-        result = yield handle_app_action(datastore_handler, server, action, args, kwargs)
+        result = yield handle_app_action(handler, server, action, args, kwargs)
 
     #This is very finicky design. We import the function here to resolve circular imports with integrations (see TODO there as well)
     #TODO find a way to properly resolve this, probably by writing another module somewhere somehow. 

@@ -10,7 +10,7 @@ from va_master.utils.va_utils import bytes_to_readable, get_route_to_minion, cal
 
 from va_master.handlers.server_management import manage_server_type
 from va_master.handlers.salt_handler import add_minion_to_server
-from va_master.handlers.app_handler import install_new_app
+from va_master.handlers.app_handler import install_new_app, handle_app_action
 from tornado.concurrent import run_on_executor, Future
 
 import salt_manage_pillar
@@ -50,7 +50,7 @@ def get_paths():
             'apps/list_user_logins': {'function' : list_user_logins, 'args' : ['username']},
             'apps/download_vpn_cert': {'function' : download_vpn_cert, 'args' : ['username', 'handler']},
             'servers/add_server' :  {'function' : add_server_to_datastore, 'args' : ['datastore_handler', 'server_name', 'ip_address', 'hostname', 'manage_type', 'user_type', 'driver_name', 'app_type', 'role', 'kwargs']},
-            'servers/manage_server' : {'function' : manage_server_type, 'args' : ['datastore_handler', 'server_name', 'new_type', 'username', 'driver_name', 'role', 'ip_address']},
+            'servers/manage_server' : {'function' : manage_server_type, 'args' : ['datastore_handler', 'server_name', 'new_type', 'username', 'driver_name', 'role', 'ip_address', 'app_type']},
         }
     }
     return paths
@@ -197,7 +197,7 @@ def perform_server_action(handler, action, server_name, provider_name = '', acti
 
     result = None
     if action_type == 'app' : 
-        result = yield handle_app_action(server = server, action = action, args = args, kwargs = kwargs)
+        result = yield handle_app_action(handler, server = server, action = action, args = args, kwargs = kwargs)
     else: 
         provider_name = provider_name or 'va_standalone_servers'
         
@@ -385,6 +385,7 @@ Updates the subscriptions status. "
 
     data = handler.data
     print ('Creating with data : ', data)
+    raise tornado.gen.Return()
     try:
         provider, driver = yield providers.get_provider_and_driver(handler, data.get('provider_name', 'va_standalone_servers'))
     
@@ -395,7 +396,7 @@ Updates the subscriptions status. "
         traceback.print_exc()
 
     result = yield driver.create_server(provider, data)
-#    send_integration_signal(donor_app = 'va-master', action = 'launch_app', kwargs = {'status' : 'created'})
+
     if provider.get('provider_name') and provider.get('provider_name', '') != 'va_standalone_servers': 
         yield add_server_to_datastore(handler.datastore_handler, server_name = data['server_name'], hostname = data['server_name'], manage_type = 'provider', driver_name = provider['driver_name'], ip_address = data.get('ip'))
 
@@ -408,7 +409,6 @@ Updates the subscriptions status. "
         while not minion_info and retries < int(handler.data.get('mine_retries', '10')):
             minion_info = yield get_app_info(handler.data['server_name'])
             minion_info.update({'type' : 'app'})
-#            send_integration_signal(donor_app = 'va-master', action = 'launch_app', kwargs = {'status' : 'created_role'})
 
             retries += 1
             if not minion_info: 
@@ -420,7 +420,6 @@ Updates the subscriptions status. "
             raise tornado.gen.Return({"success" : False, "message" : "No minion_info, something probably went wrong with trying to start the instance. ", "data" : None})
         else: 
             yield manage_server_type(handler.datastore_handler, server_name = data['server_name'], new_type = 'app', role = data['role'])
-#            send_integration_signal(donor_app = 'va-master', action = 'launch_app', kwargs = {'status' : 'managed'})
 
 
     raise tornado.gen.Return(result)
