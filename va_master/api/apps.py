@@ -39,7 +39,7 @@ def get_paths():
             'state/add' : {'function' : create_new_state,'args' : ['file', 'body', 'filename']},
             'states/reset' : {'function' : reset_states, 'args' : ['datastore_handler']}, 
             'apps/new/validate_fields' : {'function' : validate_app_fields, 'args' : ['handler']},
-            'apps/launch_app' : {'function' : launch_app, 'args' : ['handler']},
+            'apps/launch_app' : {'function' : launch_app, 'args' : ['handler', 'dash_user']},
             'apps/change_app_type' : {'function' : change_app_type, 'args' : ['datastore_handler', 'server_name', 'app_type']},
             'apps/install_new_app' : {'function' : install_app, 'args' : ['datastore_handler', 'app_zip', 'app_json']},
             'apps/get_app_required_args' : {'function' : get_app_args, 'args' : ['datastore_handler', 'app_name']},
@@ -351,7 +351,7 @@ def write_pillar(data):
     salt_manage_pillar.add_server(data.get('server_name'), data.get('role', ''))
 
 @tornado.gen.coroutine
-def launch_app(handler):
+def launch_app(handler, dash_user):
     """
         description: "Launches a server based on the data supplied. This is dependent on the specific data required by the providers. 
     The default for starting servers is using salt-cloud -p <profile> <minion_name>, where the drivers are responsible for creating the configuration files. 
@@ -385,7 +385,6 @@ Updates the subscriptions status. "
 
     data = handler.data
     print ('Creating with data : ', data)
-    raise tornado.gen.Return()
     try:
         provider, driver = yield providers.get_provider_and_driver(handler, data.get('provider_name', 'va_standalone_servers'))
     
@@ -395,7 +394,10 @@ Updates the subscriptions status. "
         import traceback
         traceback.print_exc()
 
-    result = yield driver.create_server(provider, data)
+    try:
+        result = yield driver.create_server(provider, data, handler = handler, dash_user = dash_user)
+    except: 
+        result = yield driver.create_server(provider, data)
 
     if provider.get('provider_name') and provider.get('provider_name', '') != 'va_standalone_servers': 
         yield add_server_to_datastore(handler.datastore_handler, server_name = data['server_name'], hostname = data['server_name'], manage_type = 'provider', driver_name = provider['driver_name'], ip_address = data.get('ip'))

@@ -7,8 +7,8 @@ from salt.client import LocalClient
 def get_paths():
     paths = {
         'get' : {
-            'panels/get_functions' : {'function' : get_all_functions, 'args' : ['handler']},
-            'panels/get_all_functions' : {'function' : get_all_functions_dashboard, 'args' : ['handler', 'dash_user']},
+            'panels/get_functions' : {'function' : get_all_functions, 'args' : ['datastore_handler']},
+            'panels/get_all_functions' : {'function' : get_all_functions_dashboard, 'args' : ['datastore_handler', 'dash_user']},
         },
         'post' : {
             'panels/add_functions_to_datastore' : {'function' : add_functions_to_datastore, 'args' : ['handler']},
@@ -219,12 +219,12 @@ def gather_all_functions(handler):
 
 
 @tornado.gen.coroutine
-def get_all_functions(handler):
+def get_all_functions(datastore_handler):
     """
         description: Gets all functions from consul. TODO finish doc
     """
 
-    functions = yield handler.datastore_handler.datastore.get_recurse('function_doc')
+    functions = yield datastore_handler.datastore.get_recurse('function_doc')
     raise tornado.gen.Return(functions)
 
 
@@ -242,17 +242,16 @@ def add_functions_to_datastore(handler):
             yield handler.datastore_handler.insert_object(object_type = 'function_doc', func_group = function_group, func_name = function[0], data = function[1])
 
 @tornado.gen.coroutine
-def get_all_functions_dashboard(handler, dash_user):
-    functions = yield get_all_functions(handler)
+def get_all_functions_dashboard(datastore_handler, dash_user):
+    functions = yield get_all_functions(datastore_handler)
     print ('Got functions.')
     result = yield format_functions_for_dashboard(functions, dash_user)
     print ('Got result')
     raise tornado.gen.Return(result)
 
 @tornado.gen.coroutine
-def get_function(handler, func_name, func_group):
-    all_functions = yield get_all_functions(handler)
+def get_function(datastore_handler, func_name, func_group):
+    all_functions = yield get_all_functions(datastore_handler)
     for function in all_functions: 
-        print ('Checking ', function['func_name'])
         if function['func_group'] == func_group and function['func_name']  == func_name: 
             raise tornado.gen.Return(function)

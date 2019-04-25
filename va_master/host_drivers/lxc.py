@@ -28,7 +28,7 @@ PROVIDER_TEMPLATE = '''VAR_PROVIDER_NAME:
   ssh_key_names: VAR_KEYPAIR_NAME
   ssh_key_file: VAR_SSH_FILE
   ssh_interface: private_ips
-  location: VAR_LOCATION
+#  location: VAR_LOCATION
   backups_enabled: True
   ipv6: True
   create_dns_record: True
@@ -92,16 +92,17 @@ class LXCDriver(base.DriverBase):
         return self.cl
 
     def get_server_addresses(self, s):
-        if not s['state'].get('network'): 
+        if not s.get('network'): 
             return ['']
-        return [i.get('address') for i in s['state'].get('network', {}).get('eth0', {}).get('addresses', [{}]) if i.get('family', '') == 'inet'] or ['']
+        return [i.get('address') for i in s.get('network', {}).get('eth0', {}).get('addresses', [{}]) if i.get('family', '') == 'inet'] or ['']
 
 
     def get_server_usage(self, server, key):
-#        print ('Server is : ', server['state'])
-        if not server['state'].get(key):
+        if type(server) != dict: 
+            server = server.state()
+        if not server.get(key):
             return 0 
-        return server['state'][key].get('usage', 0)
+        return server[key].get('usage', 0)
 
 
     @tornado.gen.coroutine
@@ -162,19 +163,21 @@ class LXCDriver(base.DriverBase):
             'Running' : 'ACTIVE', 
             'Stopped' : 'SHUTOFF',
         }
+        print ("I have container ----------", container, ' is container', container.state().__dict__)
+        state = container.state().__dict__
         server = {
-            'hostname' : container['server'].name,
-            'ip' : self.get_server_addresses(container)[0],
-            'size' : container['server'].name,
-            'used_disk' : self.get_server_usage(container, 'disk') / float(2**20) or 1,
-            'used_ram' : self.get_server_usage(container, 'memory') / float(2**20),
-            'status' : status_map.get(container['server'].status, container['server'].status),  #We try to get the status from the mapping, otherwise we just return the original status
+            'hostname' : container.name,
+            'ip' : self.get_server_addresses(state)[0],
+            'size' : container.name,
+            'used_disk' : self.get_server_usage(state, 'disk') / float(2**20) or 1,
+            'used_ram' : self.get_server_usage(state, 'memory') / float(2**20),
+            'status' : status_map.get(container.status, container.status),  #We try to get the status from the mapping, otherwise we just return the original status
             'cost' : 0,  #TODO find way to calculate costs
             'estimated_cost' : 0,
             'provider' : provider_name, 
             'provider_name' : provider_name, #Probably a bugfix
         }
-        if server['status'] == 'ACTIVE': 
+        if container.status == 'ACTIVE': 
             server['used_cpu'] = self.get_cpus(container)
         else: 
             server['used_cpu'] = 0
@@ -324,8 +327,11 @@ class LXCDriver(base.DriverBase):
         raise tornado.gen.Return(step_result)
 
 
+    #NOTE handler and dash_user are here to temporarily work with integraitons
+    #I'd want to do away with it from host drivers, but we have a concept to prove
+    #TODO find a way to streamline this
     @tornado.gen.coroutine
-    def create_server(self, provider, data):
+    def create_server(self, provider, data, handler = None, dash_user = None):
         try:
             lxc_config = {'name' : data['server_name'], 'source' : {'image' : data['image'], 'network' : data['network'], 'size' : data['size']}}
             cl = self.get_client(provider)
@@ -333,7 +339,7 @@ class LXCDriver(base.DriverBase):
             #NOTE this is almost definitely not the right way to do this. We should be using aliases or something. 
             image = [x for x in cl.images.all() if x.properties.get('description', '') == data['image']]
             #NOTE temporary until we figure out how to look up images
-            image = cl.images.all()[0]
+            image = [x for x in cl.images.all() if data['image'] in x.fingerprint][0]
 
             network = cl.networks.get(data['network'])
 
@@ -373,12 +379,18 @@ class LXCDriver(base.DriverBase):
                 fm.put(keys_path, key)
 
                 ip = []
-                while not ip: 
+                while not ip:
+                    print ('Trying to get state')
                     addresses = new_container.state().network['eth0']['addresses']
                     ip = [x['address'] for x in addresses if x.get('family', '') == 'inet']
                 try:
+                    print ('---------------Installing-----------------!')
                     new_container.execute(['apt-get', '-y', 'install', 'openssh-server'])
+                    print ('Success')
                 except : #Sometimes there is a weird and cryptic "Not Found" exception. TODO: find it and pass only on it 
+                    print ('Failed to install openssh')
+                    import traceback
+                    traceback.print_exc()
                     pass
                 
                 yield trigger_all_integrations(handler, dash_user, event_name = 'va-master.apps/launch_app', kwargs = {'status' : 'ManagedSSH'})
@@ -389,6 +401,8 @@ class LXCDriver(base.DriverBase):
                 yield trigger_all_integrations(handler, dash_user, event_name = 'va-master.apps/launch_app', kwargs = {'status' : 'ManagedSalt'})
 
             new_container = self.container_to_dict(new_container, provider['provider_name'])
+            yield trigger_all_integrations(handler, dash_user, event_name = 'va-master.apps/launch_app', kwargs = {'status' : 'Finished'})
+
             raise tornado.gen.Return(new_container)
         except:
             import traceback
