@@ -237,18 +237,21 @@ class Home extends Component {
             var header = (
                 <a className="noselect" onClick={() => me.togglePanels("collapse"+i)} style={{cursor: 'pointer'}}> <i className={'fa ' + panel.icon} /> {panel.name} <i className='fa fa-angle-down pull-right' /></a>
             )
-            var servers = panel.servers.map((server) => {
-                var subpanels = panel.panels.map((panel) => {
+            var servers = panel.servers.map((server, j) => {
+                var server_header = (
+                    <a className="noselect" onClick={() => me.togglePanels("subpanel_collapse"+server + i)} style={{cursor: 'pointer'}}> {server} <i className='fa fa-angle-down pull-right' /></a>
+                )
+                var subpanels = panel.panels.map((subpanel) => {
                     return (
-                        <li key={panel.key}><NavLink to={'panel/' + panel.key + '/' + server} activeKey={i} reset_tabs={me.reset_tabs}>
-                            <span>{panel.name}</span>
+                        <li key={subpanel.key}><NavLink to={'panel/' + subpanel.key + '/' + server} activeKey={i} reset_tabs={me.reset_tabs}>
+                            <span>{subpanel.name}</span>
                         </NavLink></li>
                     );
                 });
                 return (
                     <div key={server}>
-                        {header}
-                        <div id={"collapse"+i} style={{display:'none'}}>
+                        {server_header}
+                        <div id={"subpanel_collapse"+server +i} style={{display:'none'}}>
                         <ul className='left-menu'>
                             {subpanels}
                         </ul>
@@ -258,7 +261,10 @@ class Home extends Component {
             });
             return (
                 <div>
-                    {servers}
+		    {header}
+		    <div id={"collapse" + i} style={{display:'none'}}>
+                        {servers}
+                    </div>
                 </div>
             );
         });
