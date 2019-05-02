@@ -2,7 +2,6 @@ from .login import auth_only
 import tornado.gen
 from tornado.gen import Return
 from va_master.utils.va_utils import int_to_bytes
-from va_master.api.integrations import trigger_all_integrations
 import json
 import panels, apps
 
@@ -316,7 +315,6 @@ def get_providers_info(handler, dash_user, get_billing = True, get_servers = Tru
     if required_providers: 
         providers = [provider for provider in providers if provider['provider_name'] in required_providers]
 
-#    yield trigger_all_integrations(handler, dash_user, event_name = 'va-master.apps/launch_app', kwargs = {'status' : 'Testing'})
     provider_drivers = yield [drivers_handler.get_driver_by_id(x['driver_name']) for x in providers]
     providers_data = [x[0].get_provider_data(provider = x[1], get_servers = get_servers, get_billing = get_billing) for x in zip(provider_drivers, providers)]
     providers_info = yield providers_data
@@ -353,7 +351,6 @@ def get_providers_info(handler, dash_user, get_billing = True, get_servers = Tru
     providers_info = [x for x in providers_info if x['provider_name']]
 
     standalone_default_values = {'size' : ''}
- #   yield trigger_all_integrations(handler, dash_user, event_name = 'va-master.apps/launch_app', kwargs = {'status' : 'Testing2'})
     standalone_provider = yield datastore_handler.get_provider('va_standalone_servers')
     standalone_driver = yield drivers_handler.get_driver_by_id('generic_driver')
     standalone_servers = yield standalone_driver.get_servers(standalone_provider)

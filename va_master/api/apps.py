@@ -8,6 +8,8 @@ import zipfile, tarfile
 from va_master.utils.paramiko_utils import ssh_call
 from va_master.utils.va_utils import bytes_to_readable, get_route_to_minion, call_master_cmd
 
+from va_master.api.integrations import trigger_all_integrations
+
 from va_master.handlers.server_management import manage_server_type
 from va_master.handlers.salt_handler import add_minion_to_server
 from va_master.handlers.app_handler import install_new_app, handle_app_action
@@ -40,6 +42,7 @@ def get_paths():
             'states/reset' : {'function' : reset_states, 'args' : ['datastore_handler']}, 
             'apps/new/validate_fields' : {'function' : validate_app_fields, 'args' : ['handler']},
             'apps/launch_app' : {'function' : launch_app, 'args' : ['handler', 'dash_user']},
+            'apps/provision_app' : {'function' : provision_app, 'args' : ['handler', 'dash_user']},
             'apps/change_app_type' : {'function' : change_app_type, 'args' : ['datastore_handler', 'server_name', 'app_type']},
             'apps/install_new_app' : {'function' : install_app, 'args' : ['datastore_handler', 'app_zip', 'app_json']},
             'apps/get_app_required_args' : {'function' : get_app_args, 'args' : ['datastore_handler', 'app_name']},
@@ -350,6 +353,21 @@ def write_pillar(data):
         f.write(pillar_str)
     salt_manage_pillar.add_server(data.get('server_name'), data.get('role', ''))
 
+
+@tornado.gen.coroutine
+def provision_app(handler, dash_user):
+    yield trigger_all_integrations(handler, dash_user, event_name = 'va-master.apps/launch_app', kwargs = {'status' : 'Initialized'})
+#    yield tornado.gen.sleep(15)
+
+    new_server = yield launch_app(handler, dash_user)
+    yield trigger_all_integrations(handler, dash_user, event_name = 'va-master.apps/launch_app', kwargs = {'status' : 'Created'})
+#    yield tornado.gen.sleep(15)
+
+    result = yield add_minion_to_server(handler.datastore_handler, handler.data['server_name'], new_server['ip_address'], handler.data['role'], key_filename = '/root/.ssh/va-master.pem', username = handler.data.get('username', 'root'))
+    yield trigger_all_integrations(handler, dash_user, event_name = 'va-master.apps/launch_app', kwargs = {'status' : 'Completed'})
+
+
+
 @tornado.gen.coroutine
 def launch_app(handler, dash_user):
     """
@@ -394,10 +412,7 @@ Updates the subscriptions status. "
         import traceback
         traceback.print_exc()
 
-    try:
-        result = yield driver.create_server(provider, data, handler = handler, dash_user = dash_user)
-    except: 
-        result = yield driver.create_server(provider, data)
+    result = yield driver.create_server(provider, data)
 
     if provider.get('provider_name') and provider.get('provider_name', '') != 'va_standalone_servers': 
         yield add_server_to_datastore(handler.datastore_handler, server_name = data['server_name'], hostname = data['server_name'], manage_type = 'provider', driver_name = provider['driver_name'], ip_address = data.get('ip'))
@@ -416,12 +431,12 @@ Updates the subscriptions status. "
             if not minion_info: 
                 yield tornado.gen.sleep(10)
 
-        yield services.add_services_presets(minion_info, ['ping'])
+#        yield services.add_services_presets(minion_info, ['ping'])
 
-        if not minion_info: 
-            raise tornado.gen.Return({"success" : False, "message" : "No minion_info, something probably went wrong with trying to start the instance. ", "data" : None})
-        else: 
-            yield manage_server_type(handler.datastore_handler, server_name = data['server_name'], new_type = 'app', role = data['role'])
+#        if not minion_info: 
+#            raise tornado.gen.Return({"success" : False, "message" : "No minion_info, something probably went wrong with trying to start the instance. ", "data" : None})
+#        else: 
+#            yield manage_server_type(handler.datastore_handler, server_name = data['server_name'], new_type = 'app', role = data['role'])
 
 
     raise tornado.gen.Return(result)

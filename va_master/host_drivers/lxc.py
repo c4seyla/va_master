@@ -14,8 +14,6 @@ from tornado.httpclient import AsyncHTTPClient, HTTPRequest
 import tornado.gen
 import json, datetime, subprocess, os
 
-from va_master.api.integrations import trigger_all_integrations
-
 from pylxd import Client
 
 #TODO need to see how to actually write the provider conf
@@ -163,7 +161,7 @@ class LXCDriver(base.DriverBase):
             'Running' : 'ACTIVE', 
             'Stopped' : 'SHUTOFF',
         }
-        print ("I have container ----------", container, ' is container', container.state().__dict__)
+        print ("I have container ----------", container)
         state = container.state().__dict__
         server = {
             'hostname' : container.name,
@@ -190,7 +188,7 @@ class LXCDriver(base.DriverBase):
         servers = cl.containers.all()
         servers = [{'server' : x, 'state' : x.state().__dict__} for x in servers]
 
-        servers = [self.container_to_dict(x, provider['provider_name']) for x in servers]
+        servers = [self.container_to_dict(x['server'], provider['provider_name']) for x in servers]
 
         raise tornado.gen.Return(servers)
 
@@ -331,7 +329,7 @@ class LXCDriver(base.DriverBase):
     #I'd want to do away with it from host drivers, but we have a concept to prove
     #TODO find a way to streamline this
     @tornado.gen.coroutine
-    def create_server(self, provider, data, handler = None, dash_user = None):
+    def create_server(self, provider, data):
         try:
             lxc_config = {'name' : data['server_name'], 'source' : {'image' : data['image'], 'network' : data['network'], 'size' : data['size']}}
             cl = self.get_client(provider)
@@ -339,10 +337,12 @@ class LXCDriver(base.DriverBase):
             #NOTE this is almost definitely not the right way to do this. We should be using aliases or something. 
             image = [x for x in cl.images.all() if x.properties.get('description', '') == data['image']]
             #NOTE temporary until we figure out how to look up images
+            print ('Images are : ', [x.fingerprint for x in cl.images.all()], ' and looking for ', data['image'])
             image = [x for x in cl.images.all() if data['image'] in x.fingerprint][0]
 
             network = cl.networks.get(data['network'])
 
+            print (image.properties)
             lxc_config = {
                 'name' : data['server_name'], 
                 'source' : {
@@ -355,8 +355,6 @@ class LXCDriver(base.DriverBase):
                     }
                 }
             }
-
-            yield trigger_all_integrations(handler, dash_user, event_name = 'va-master.apps/launch_app', kwargs = {'status' : 'Init'})
             new_container = cl.containers.create(lxc_config, wait = True)
 
             print ('status is ', new_container.status)
@@ -367,43 +365,33 @@ class LXCDriver(base.DriverBase):
             with open(self.key_path + '.pub', 'r') as f:
                 key = f.read()
 
-            if data.get('role'): 
-                yield trigger_all_integrations(handler, dash_user, event_name = 'va-master.apps/launch_app', kwargs = {'status' : 'Started'})
+            new_container.start(wait = True)
 
-                new_container.start(wait = True)
+            new_container.execute(['mkdir', '-p', ssh_path])
+            fm = new_container.FilesManager(cl, new_container)
+            fm.put(keys_path, key)
 
-                yield trigger_all_integrations(handler, dash_user, event_name = 'va-master.apps/launch_app', kwargs = {'status' : 'Created'})
-
-                new_container.execute(['mkdir', '-p', ssh_path])
-                fm = new_container.FilesManager(cl, new_container)
-                fm.put(keys_path, key)
-
-                ip = []
-                while not ip:
-                    print ('Trying to get state')
-                    addresses = new_container.state().network['eth0']['addresses']
-                    ip = [x['address'] for x in addresses if x.get('family', '') == 'inet']
-                try:
-                    print ('---------------Installing-----------------!')
-                    new_container.execute(['apt-get', '-y', 'install', 'openssh-server'])
-                    print ('Success')
-                except : #Sometimes there is a weird and cryptic "Not Found" exception. TODO: find it and pass only on it 
-                    print ('Failed to install openssh')
-                    import traceback
-                    traceback.print_exc()
-                    pass
-                
-                yield trigger_all_integrations(handler, dash_user, event_name = 'va-master.apps/launch_app', kwargs = {'status' : 'ManagedSSH'})
-
-                ip = ip[0]
-                print ('IP is : ', ip)
-                yield apps.add_minion_to_server(self.datastore_handler, data['server_name'], ip, data['role'], key_filename = '/root/.ssh/va-master.pem', username = 'root')
-                yield trigger_all_integrations(handler, dash_user, event_name = 'va-master.apps/launch_app', kwargs = {'status' : 'ManagedSalt'})
+            ip = []
+            while not ip:
+                addresses = new_container.state().network['eth0']['addresses']
+                ip = [x['address'] for x in addresses if x.get('family', '') == 'inet']
+            try:
+                new_container.execute(['apt-get', '-y', 'install', 'openssh-server'])
+            except : #Sometimes there is a weird and cryptic "Not Found" exception. TODO: find it and pass only on it 
+                import traceback
+                traceback.print_exc()
+                pass
+            ip = ip[0]
+            print ('IP is : ', ip)
+#                yield apps.add_minion_to_server(self.datastore_handler, data['server_name'], ip, data['role'], key_filename = '/root/.ssh/va-master.pem', username = 'root')
 
             new_container = self.container_to_dict(new_container, provider['provider_name'])
-            yield trigger_all_integrations(handler, dash_user, event_name = 'va-master.apps/launch_app', kwargs = {'status' : 'Finished'})
-
+            print ('New container : ', new_container)
+            new_container['ip_address'] = ip
+            print ('Now is : ', new_container)
             raise tornado.gen.Return(new_container)
+        except tornado.gen.Return: 
+            raise
         except:
             import traceback
             traceback.print_exc()
