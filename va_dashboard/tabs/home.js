@@ -314,9 +314,9 @@ class Home extends Component {
                     </div>
                     {this.props.alert.show && React.createElement(Bootstrap.Alert, {bsStyle: this.props.alert.className, onDismiss: this.handleAlertDismiss, className: "messages"}, this.props.alert.msg) }
                 </div>
-				<div className="footer">
-					Powered by <a href="//vapour-apps.com" target="_blank">VapourApps</a> | <a href="mailto:support@vapour-apps.com">support@vapour-apps.com</a>
-				</div>
+                <div className="footer">
+                    Powered by <a href="//vapour-apps.com" target="_blank">VapourApps</a> | <a href="mailto:support@vapour-apps.com">support@vapour-apps.com</a>
+                </div>
             </div>
         );
     }

@@ -334,11 +334,10 @@ class LXCDriver(base.DriverBase):
             lxc_config = {'name' : data['server_name'], 'source' : {'image' : data['image'], 'network' : data['network'], 'size' : data['size']}}
             cl = self.get_client(provider)
 
-            #NOTE this is almost definitely not the right way to do this. We should be using aliases or something. 
-            image = [x for x in cl.images.all() if x.properties.get('description', '') == data['image']]
-            #NOTE temporary until we figure out how to look up images
-            print ('Images are : ', [x.fingerprint for x in cl.images.all()], ' and looking for ', data['image'])
-            image = [x for x in cl.images.all() if data['image'] in x.fingerprint][0]
+            try: 
+                image = cl.images.get_by_alias(data['image'])
+            except: 
+                raise Exception('No image ' + str(data['image']))
 
             network = cl.networks.get(data['network'])
 
