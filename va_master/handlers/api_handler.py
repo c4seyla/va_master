@@ -12,7 +12,7 @@ from va_master.api import url_handler
 from va_master.api.login import get_current_user, user_login
 from va_master.api.users import get_predefined_arguments
 from va_master.api.panels import panel_action, get_panel_for_user
-from va_master.api.triggers import handle_app_trigger 
+#from va_master.api.triggers import handle_app_trigger 
 from va_master.handlers.drivers_handler import DriversHandler
 from proxy_handler import ProxyHandler
 
@@ -218,8 +218,9 @@ class ApiHandler(tornado.web.RequestHandler):
     #TODO remove this function maybe, it's orphaned now. 
     @tornado.gen.coroutine
     def check_and_resolve_trigger(self, api_func, dash_user):
-        if api_func['function'] == panel_action:
-            yield handle_app_trigger(self, dash_user)
+        pass
+#        if api_func['function'] == panel_action:
+ #           yield handle_app_trigger(self, dash_user)
 
     @tornado.gen.coroutine
     def exec_method(self, method, path, data):
