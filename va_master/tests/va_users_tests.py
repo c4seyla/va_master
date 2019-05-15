@@ -1,51 +1,60 @@
-import unittest
-import time
-import sys
+import time, sys
 from va_api import APIManager
 import warnings
-from va_test_base import VATestClass
+from va_integration_base import VATestBase
 
-class VAUsersTests(VATestClass):
+class VAUsersTests(VATestBase):
+
+    def __init__(self, *args, **kwargs):
+        super(VAUsersTests, self).__init__(*args, **kwargs)
+
+        self.test_functions = [
+            (self.get_users, {}) ,
+            (self.test_users, {}), 
+            (self.test_add_user, {}), 
+        ]
+
+
     def get_users(self):
         users = self.api.api_call('/panels/users', method = 'get', data = {})
-        self.assertTrue(users['success'])
+        self.assert_success(users)
 
-        return users
+        return users['data']
 
     def check_if_user_exists(self, user):
         users = self.get_users()
-        self.assertIn(user['user'], [x['user'] for x in users['data']])
+        user = user['user']
+        users = [x['user'] for x in users]
+        assert (user in users), "User %s not found in list of users: %s. " % (user, users)
 
     def test_users(self):
         users = self.get_users()
-        self.assertTrue(users['success'])
-
         required_keys = ['user', 'functions', 'groups']
-        self.handle_keys_in_set(users['data'], required_keys, data_id_key = 'user')
+        self.test_keys_in_set(users, required_keys, data_id_key = 'user')
 
     def add_group(self, group):
         new_group = self.api.api_call('/panels/create_user_group', method = 'post', data = {'group_name' : group['name'], 'functions' : group['functions']})
-        self.assertTrue(new_group['success'])
+        self.assert_success(new_group)
 
     def add_user(self, user)       :
         new_user_api = self.api.api_call('/panels/create_user_with_group', method = 'post', data = user)
-        self.assertTrue(new_user_api['success'])
+        self.assert_success(new_user_api)
 
     def _test_user_endpoint(self, function, token = '', method = 'get', data = {}, success = True):
         result = self.api.api_call(function, method = method, data = data, token = token)
-        self.assertEqual(result['success'], success)
+        assert (result['success'] == success), "Success was wrong - expected %s but is %s. " % (str(success), str(result['success']))
 
     def test_add_user(self):
         user_functions = ['apps/action', 'panels', 'apps/get_panel']
         group = {'name' : 'providers', 'functions' : [{'func_path' : 'providers'}]}
-        new_user = {'user' : 'test_user', 'password' : 'test_password', 'user_type' : 'user', 'functions' : user_functions, 'groups' : [group['name']]}
+        new_user = {'user' : 'auto_testing_user', 'password' : 'test_password', 'user_type' : 'user', 'functions' : user_functions, 'groups' : [group['name']]}
 
         self.add_group(group)
         self.add_user(new_user)
         self.check_if_user_exists(new_user)
 
         login = self.api.api_call('/login', method = 'post', data = {'username' : new_user['user'], 'password' : new_user['password']})
-        self.assertTrue(login['success'])
+        self.assert_success(login)
         token = login['data']['token']
 
         panels = self._test_user_endpoint('/panels', method = 'get', token = token)
@@ -54,11 +63,8 @@ class VAUsersTests(VATestClass):
         providers_info = self._test_user_endpoint('/providers/info', method = 'post', token = token, success = False)
 
         delete = self.api.api_call('/panels/delete_user', method = 'post', data = {'user' : new_user['user']})
-        self.assertTrue(delete['success'])
+        self.assert_success(delete)
 
         delete_group = self.api.api_call('/panels/delete_group', method = 'post', data = {'group_name' : group['name']})
-        self.assertTrue(delete_group['success'])
+        self.assert_success(delete_group)
 
-if __name__ == '__main__':
-    suite = unittest.TestLoader().loadTestsFromTestCase(VAUsersTests)
-    unittest.TextTestRunner(verbosity=5).run(suite)

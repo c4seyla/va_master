@@ -34,8 +34,8 @@ class Config(object):
         self.ssh_key_name = 'va-master' 
 
         self.ssl_folder = folder_pwd + '/ssl'
-        self.https_crt = folder_pwd + '/ssl/cert.crt'
-        self.https_key = folder_pwd + '/ssl/server.key'
+        self.https_crt = folder_pwd + '/ssl/https.crt'
+        self.https_key = folder_pwd + '/ssl/https.key'
 
         self.datastore_handler = datastore_handler.DatastoreHandler(datastore = self.datastore, config = self)
         self.drivers_handler = drivers_handler.DriversHandler(self.datastore_handler, ssh_key_path = self.ssh_key_path, ssh_key_name = self.ssh_key_name, ssl_path = self.ssl_folder)

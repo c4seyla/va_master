@@ -17,6 +17,7 @@ def get_paths():
             'providers/get_provider_billing' : {'function' : get_provider_billing, 'args' : ['provider_name']},
             'providers/billing' : {'function' : get_providers_billing, 'args' : ['handler']},
             'providers/get_provider_fields' : {'function' : get_provider_fields, 'args' : ['handler', 'provider_name']},
+            'providers/get_provider_servers' : {'function' : get_provider_servers, 'args' : ['handler', 'provider_name']},
 
             'providers' : {'function' : list_providers, 'args' : ['handler']},
 
@@ -77,9 +78,13 @@ def get_providers_triggers(handler, provider_name):
     result = yield driver.get_driver_trigger_functions()
     raise tornado.gen.Return(result)
 
+#TODO finish documentation properly. 
 @tornado.gen.coroutine
 def list_providers(handler):
-    """Gets a list of providers from the datastore. Adds the driver name to the list, and gets the status. Gets a list of servers for each provider and, if there are any hidden servers, they are removed from the list. """
+    """
+        description: Gets a list of providers from the datastore. Adds the driver name to the list, and gets the status. Gets a list of servers for each provider and, if there are any hidden servers, they are removed from the list. Also returns various dashboard-specific data which helps with formatting on the frontend. 
+        output: '{"providers": [{"username": "admin", "provider_conf": "provider_conf", "provider_ip": "https://127.0.0.1", "sec_groups": ["No security groups. "], "sizes": ["va-small"], "profile_conf_dir": "/etc/salt/cloud.profiles.d/some_profile.conf", "servers": [{"status": "ACTIVE", "ip": "127.0.0.1", "used_ram": 1442.01171875, "used_disk": 1, "cost": 0, "size": "va-small", "used_cpu": 1, "hostname": "va-master", "estimated_cost": 0, "provider": "lxd", "provider_name": "lxd"}, "steps": [{"fields": [{"blank": false, "type": "str", "id": "provider_name", "value": "lxd", "name": "Name for the host"}, {"blank": false, "type": "str", "id": "username", "value": "admin", "name": "Username"}, {"blank": false, "type": "str", "id": "password", "value": "admin", "name": "Password"}, {"blank": false, "type": "str", "id": "location", "value": "googl", "name": "Enter the location of the host"}, {"blank": false, "type": "str", "id": "provider_ip", "value": "https://10.81.160.1:8443", "name": "IP of the lxc host."}], "name": "Provider info"}, {"fields": [{"blank": false, "type": "description", "id": "netsec_desc", "value": "", "name": "Current connection info"}, {"blank": false, "type": "options", "id": "network", "value": "", "name": "Pick network"}, {"blank": false, "type": "options", "id": "sec_group", "value": "", "name": "Pick security group"}], "name": "Network & security group"}, {"fields": [{"blank": false, "type": "options", "id": "image", "value": "", "name": "Image"}, {"blank": false, "type": "options", "id": "size", "value": "", "name": "Size"}], "name": "Image & size"}], "provider_name": "lxd", "password": "admin", "networks": ["lxdbr0", "lo", "eth0"]}]}'
+    """
     datastore_handler = handler.datastore_handler
     drivers_handler = handler.drivers_handler
 
@@ -149,9 +154,13 @@ def get_driver_steps(handler, driver_name):
 
     raise tornado.gen.Return(steps)
 
+#TODO specify steps
 @tornado.gen.coroutine
 def list_drivers(drivers_handler):
-    """Gets a list of drivers. """
+    """
+        description: Gets a list of drivers. 
+        output: '{"id" : "provider_id", "friendly_name" : "Provider", "steps" : []}'
+    """
     drivers = yield drivers_handler.get_drivers()
     out = {'drivers': []}
     for driver in drivers:
@@ -269,13 +278,33 @@ def get_providers_billing(handler):
     }
     raise tornado.gen.Return(result)
 
+#TODO specify output
 @tornado.gen.coroutine
 def get_providers_info(handler, dash_user, get_billing = True, get_servers = True, required_providers = [], sort_by_location = False):
     """
-    Gets all info for all providers - servers and their usages, the provider usage, images, sizes, networks, security groups, billing info and all provider datastore data. 
-    If get_billing is false, then the billing data will be empty. Same for get_servers. 
-    If required_providers is set, the providers are filtered to only show the providers with a provider_name in that list. 
-    If sort_by_location is true, then this sorts providers in a dictionary object where the keys are the locations of the providers. 
+        description: Gets all info fior all providers - servers and their usages, the provider usage, images, sizes, networks, security groups, billing info and all provider datastore data. If get_billing is false, then the billing data will be empty. Same for get_servers. If required_providers is set, the providers are filtered to only show the providers with a provider_name in that list. If sort_by_location is true, then this sorts providers in a dictionary object where the keys are the locations of the providers. 
+        output: A list of providers with stats for their servers and provider-specific stats. 
+        arguments: 
+          - name: get_billing
+            description: If set, also returns billing data for the providers. 
+            required: False
+            type: bool
+            default: True
+          - name: get_servers
+            description: If set, also returns all servers
+            required: False
+            type: bool
+            default: True
+          - name: required_providers
+            description: If set, only returns data for specified providers
+            required: False
+            type: list
+            default: list
+          - sort_by_location: 
+            description: 'If set, sorts providers by location, as {"loc1" : ["list", "of", "providers"], "loc2" : [...]}'
+            required: False
+            type: bool
+            default: False
     """
     drivers_handler = handler.drivers_handler
     datastore_handler = handler.datastore_handler
@@ -286,12 +315,11 @@ def get_providers_info(handler, dash_user, get_billing = True, get_servers = Tru
     if required_providers: 
         providers = [provider for provider in providers if provider['provider_name'] in required_providers]
 
-    
     provider_drivers = yield [drivers_handler.get_driver_by_id(x['driver_name']) for x in providers]
     providers_data = [x[0].get_provider_data(provider = x[1], get_servers = get_servers, get_billing = get_billing) for x in zip(provider_drivers, providers)]
     providers_info = yield providers_data
    
-    states = yield panels.get_panels(handler, dash_user)
+    states = yield panels.list_panels(datastore_handler, dash_user)
 
     for p_info in zip(providers_info, providers):
         provider = p_info[0]
@@ -323,12 +351,14 @@ def get_providers_info(handler, dash_user, get_billing = True, get_servers = Tru
     providers_info = [x for x in providers_info if x['provider_name']]
 
     standalone_default_values = {'size' : ''}
-
     standalone_provider = yield datastore_handler.get_provider('va_standalone_servers')
     standalone_driver = yield drivers_handler.get_driver_by_id('generic_driver')
     standalone_servers = yield standalone_driver.get_servers(standalone_provider)
+    standalone_provider_data = yield standalone_driver.get_provider_data({'provider_name' : 'va_standalone_servers'})
+
 
     for s in standalone_servers: 
+        print ('Have : ', s, ' for servers')
         datastore_server = yield datastore_handler.get_object(object_type = 'server', server_name = server.get('server_name', server.get('hostname', '')))
         s.update(datastore_server)
 
@@ -340,8 +370,12 @@ def get_providers_info(handler, dash_user, get_billing = True, get_servers = Tru
         {
             "provider_name" : "", 
             "servers" : [x for x in standalone_servers if x.get('location', 'va-master') == l], 
+            "provider_usage" : standalone_provider_data['provider_usage'],
+            "status" : standalone_provider_data['status'],
             "location" : l,
         } for l in standalone_locations]
+
+    print ('Standalone are : ', standalone_providers)
     providers_info += standalone_providers
 
     if sort_by_location: 
@@ -354,3 +388,31 @@ def get_providers_info(handler, dash_user, get_billing = True, get_servers = Tru
 
     raise tornado.gen.Return(providers_info)
 
+
+@tornado.gen.coroutine
+def get_provider_servers(handler, provider_name):
+    """
+        description: Gets a list of servers for the specified provider. 
+        arguments: 
+          - name: provider_name
+            description: Will query the provider with this name for a list of servers it provisions. 
+            type: string
+            required: True
+            example: va_provider
+        output: 
+          - status: ACTIVE,
+            ip: 10.81.160.75
+            used_ram: 1435.83984375
+            used_disk: 1
+            cost: 0
+            size: va-master
+            used_cpu: 1
+            hostname: va-master
+            estimated_cost: 0
+            provider: lxd
+            provider_name: lxd 
+        visible: True
+    """
+    provider, driver = yield get_provider_and_driver(handler, provider_name)
+    result = yield driver.get_servers(provider)
+    raise tornado.gen.Return(result)

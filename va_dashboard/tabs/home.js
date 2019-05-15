@@ -3,6 +3,7 @@ import {Router, Link, IndexLink, hashHistory} from 'react-router';
 var Bootstrap = require('react-bootstrap');
 import {connect} from 'react-redux';
 var moment = require('moment');
+var Notification=require('./notification');
 // import { findDOMNode } from 'react-dom';
 
 var Network = require('../network');
@@ -46,6 +47,7 @@ const NavLink = (props) => {
 class Home extends Component {
     constructor (props) {
         super(props);
+        console.log('Props', props);
         var activeKey = window.localStorage.getItem('activeKey');
         if(activeKey){
             activeKey = parseInt(activeKey);
@@ -56,6 +58,7 @@ class Home extends Component {
             'data': [],
             'collapse': false,
             'activeKey': activeKey,
+            'userType': props.auth.userType,
             'stats': {}
         };
         this.show_tabs = this.show_tabs.bind(this);
@@ -64,6 +67,9 @@ class Home extends Component {
         this.navbar_click = this.navbar_click.bind(this);
         this.handleAlertDismiss = this.handleAlertDismiss.bind(this);
         this.collapse = this.collapse.bind(this);
+        this.togglePanels = this.togglePanels.bind(this);
+        this.showUpperPanels=this.showUpperPanels.bind(this);
+        this.showNavLinks=this.showNavLinks.bind(this);
     }
     show_tabs(key){
         this.props.dispatch({type: 'SHOW_TABS', key: key});
@@ -112,6 +118,9 @@ class Home extends Component {
             this.props.dispatch({type: 'SHOW_TABS', key: 'users'});
             hashHistory.push('/users_users');
         }
+        else if(key === 'api'){
+            hashHistory.push('/api');
+        }
     }
     collapse() {
         this.setState({collapse: !this.state.collapse});
@@ -123,6 +132,100 @@ class Home extends Component {
     handleAlertDismiss() {
         this.props.dispatch({type: 'HIDE_ALERT'});
     }
+
+    togglePanels(id) {
+        var x = document.getElementById(id);
+        console.log(id);
+        if (x.style.display === "none") {
+            x.style.display = "block";
+        } else {
+            x.style.display = "none";
+        }
+    }
+
+    showNavLinks(){
+        if(this.state.userType == 'admin'){
+                        var navLinks=[];
+                        navLinks.push(<Bootstrap.MenuItem eventKey='users'>Users</Bootstrap.MenuItem>);
+                        navLinks.push(<Bootstrap.MenuItem eventKey='api'>API</Bootstrap.MenuItem>);
+                        navLinks.push(<li role="presentation"><a role="menuitem" href="https://github.com/VapourApps/va_master/tree/master/docs" target="_blank">Help</a></li>);
+                        return navLinks;
+        }
+        else{
+            return(<div></div>);
+        }
+    }
+
+    showUpperPanels(){
+        console.log('User type: ', this.state.userType);
+        if(this.state.userType == 'admin'){
+           return (<div>
+                            <li>
+                            <IndexLink to='' activeClassName='active' onClick={this.reset_tabs}>
+                                <Bootstrap.Glyphicon glyph='home' /> Overview</IndexLink>
+                            </li>
+                            
+                            <li>
+                            <NavLink to='providers' reset_tabs={this.reset_tabs}>
+                                <Bootstrap.Glyphicon glyph='hdd' /> Infrastructure <span className="badge">{this.state.stats.providers}</span></NavLink>
+                            </li>
+                            
+                            <li>
+                            <NavLink to='servers' reset_tabs={this.reset_tabs}>
+                                <span><i className='fa fa-server' /> Servers <span className="badge">{this.state.stats.servers}</span></span>
+                            </NavLink>
+                            </li>
+                            
+                            <li>
+                            <NavLink to='store' reset_tabs={this.reset_tabs}>
+                                <Bootstrap.Glyphicon glyph='th' /> Apps <span className="badge">{this.state.stats.apps}</span></NavLink>
+                            </li>
+
+                            <li>
+                            <NavLink to='services' reset_tabs={this.reset_tabs}>
+                                <Bootstrap.Glyphicon glyph='cloud' /> Services <span className="badge">{this.state.stats.services}</span></NavLink>
+                            </li>
+                            
+
+                            <li>
+                            <NavLink to='integrations' tabs='integrations' show_tabs={this.show_tabs}>
+                                <span><i className='fa fa-exchange' /> Integrations <span className="badge">{this.state.stats.integrations}</span></span>
+                            </NavLink>
+                            </li>
+
+                            <li>
+                            <NavLink to='vpn_status' tabs='vpn' show_tabs={this.show_tabs}>
+                                <span><i className='fa fa-lock' /> VPN <span className="badge">{this.state.stats.vpn}</span></span>
+                            </NavLink>
+                            </li>
+
+                            <li>
+                            <NavLink to='log' reset_tabs={this.reset_tabs}>
+                                <span><i className='fa fa-bar-chart' /> Log</span>
+                            </NavLink>
+                            </li>
+
+                            <li>
+                            <NavLink to='billing' reset_tabs={this.reset_tabs}>
+                                <span><i className='fa fa-credit-card' /> Billing</span>
+                            </NavLink>
+                            </li>
+
+                            <li role="separator" className="divider-vertical"></li>
+                            <li className="panels-title">Admin panels</li>
+                    </div>);
+        }
+
+        else{
+            return(
+                <div>
+                    <li role="separator" className="divider-vertical"></li>
+                    <li className="panels-title">User panels</li>
+                </div>
+            );
+        }
+    }
+
     render() {
         var me = this;
         var panels = this.state.data.filter(function(panel) {
@@ -132,29 +235,37 @@ class Home extends Component {
             return false;
         }).map(function(panel, i) {
             var header = (
-                <span><i className={'fa ' + panel.icon} /> {panel.name} <i className='fa fa-angle-down pull-right' /></span>
+                <a className="noselect" onClick={() => me.togglePanels("collapse"+i)} style={{cursor: 'pointer'}}> <i className={'fa ' + panel.icon} /> {panel.name} <i className='fa fa-angle-down pull-right' /></a>
             )
-            var servers = panel.servers.map((server) => {
-                var subpanels = panel.panels.map((panel) => {
+            var servers = panel.servers.map((server, j) => {
+                var server_header = (
+                    <a className="noselect" onClick={() => me.togglePanels("subpanel_collapse"+server + i)} style={{cursor: 'pointer'}}> {server} <i className='fa fa-angle-down pull-right' /></a>
+                )
+                var subpanels = panel.panels.map((subpanel) => {
                     return (
-                        <li key={panel.key}><NavLink to={'panel/' + panel.key + '/' + server} activeKey={i} reset_tabs={me.reset_tabs}>
-                            <span>{panel.name}</span>
+                        <li key={subpanel.key}><NavLink to={'panel/' + subpanel.key + '/' + server} activeKey={i} reset_tabs={me.reset_tabs}>
+                            <span>{subpanel.name}</span>
                         </NavLink></li>
                     );
                 });
                 return (
                     <div key={server}>
-                        <span className="panels-title">{server}</span>
+                        {server_header}
+                        <div id={"subpanel_collapse"+server +i} style={{display:'none'}}>
                         <ul className='left-menu'>
                             {subpanels}
                         </ul>
+                        </div>
                     </div>
                 );
             });
             return (
-                <Bootstrap.Panel key={panel.name} header={header} eventKey={i}>
-                    {servers}
-                </Bootstrap.Panel>
+                <div>
+                    {header}
+                    <div id={"collapse" + i} style={{display:'none'}}>
+                        {servers}
+                    </div>
+                </div>
             );
         });
         var key = this.props.menu.showTabs || window.location.hash.split('_')[0].slice(2);
@@ -166,6 +277,7 @@ class Home extends Component {
             {to: 'store', glyph: 'th'}, {to: 'services', glyph: 'cloud'},
             {to: 'servers', klasa: 'server'}, {to: 'servers', klasa: 'server'}
         ];*/
+
 
         return (
             <div id="app-content">
@@ -181,53 +293,19 @@ class Home extends Component {
                         </Bootstrap.Nav>}
                         <Bootstrap.Nav pullRight>
                             <Bootstrap.NavDropdown title={this.props.auth.username} onSelect={this.navbar_click} id="nav-dropdown" pullRight>
-                                    <Bootstrap.MenuItem eventKey='users'>Users</Bootstrap.MenuItem>
-                                    <li role="presentation"><a role="menuitem" href="https://github.com/VapourApps/va_master/tree/master/docs" target="_blank">Help</a></li>
+                                    {this.showNavLinks()}
                                     <Bootstrap.MenuItem eventKey='logout'>Logout</Bootstrap.MenuItem>
                             </Bootstrap.NavDropdown>
                         </Bootstrap.Nav>
-                        <NotificationRedux />
+                        <Notification />
                     </Bootstrap.Navbar.Collapse>
                 </Bootstrap.Navbar>
                 <div className='main-content'>
                     <div className='sidebar' style={this.state.collapse?{display: 'none'}:{display: 'flex'}}>
                         <ul className='left-menu'>
+                                {this.showUpperPanels()}
                             <li>
-                            <IndexLink to='' activeClassName='active' onClick={this.reset_tabs}>
-                                <Bootstrap.Glyphicon glyph='home' /> Overview</IndexLink>
-                            </li>
-                            <li>
-                            <NavLink to='providers' reset_tabs={this.reset_tabs}>
-                                <Bootstrap.Glyphicon glyph='hdd' /> Providers <span className="badge">{this.state.stats.providers}</span></NavLink>
-                            </li>
-                            <NavLink to='servers' reset_tabs={this.reset_tabs}>
-                                <span><i className='fa fa-server' /> Servers <span className="badge">{this.state.stats.servers}</span></span>
-                            </NavLink>
-                            <li>
-                            <NavLink to='store' reset_tabs={this.reset_tabs}>
-                                <Bootstrap.Glyphicon glyph='th' /> Apps <span className="badge">{this.state.stats.apps}</span></NavLink>
-                            </li>
-                            <li>
-                            <NavLink to='services' reset_tabs={this.reset_tabs}>
-                                <Bootstrap.Glyphicon glyph='cloud' /> Services <span className="badge">{this.state.stats.services}</span></NavLink>
-                            </li>
-                            <li>
-                            <NavLink to='vpn_status' tabs='vpn' show_tabs={this.show_tabs}>
-                                <span><i className='fa fa-lock' /> VPN <span className="badge">{this.state.stats.vpn}</span></span>
-                            </NavLink>
-                            <NavLink to='log' reset_tabs={this.reset_tabs}>
-                                <span><i className='fa fa-bar-chart' /> Log</span>
-                            </NavLink>
-                            <NavLink to='billing' reset_tabs={this.reset_tabs}>
-                                <span><i className='fa fa-credit-card' /> Billing</span>
-                            </NavLink>
-                            </li>
-                            <li role="separator" className="divider-vertical"></li>
-                            <li className="panels-title">Admin panels</li>
-                            <li>
-                                <Bootstrap.Accordion key={this.state.activeKey} defaultActiveKey={this.state.activeKey}>
                                     {panels}
-                                </Bootstrap.Accordion>
                             </li>
                         </ul>
                     </div>
@@ -236,15 +314,15 @@ class Home extends Component {
                     </div>
                     {this.props.alert.show && React.createElement(Bootstrap.Alert, {bsStyle: this.props.alert.className, onDismiss: this.handleAlertDismiss, className: "messages"}, this.props.alert.msg) }
                 </div>
-				<div className="footer">
-					Powered by <a href="//vapour-apps.com" target="_blank">VapourApps</a> | <a href="mailto:support@vapour-apps.com">support@vapour-apps.com</a>
-				</div>
+                <div className="footer">
+                    Powered by <a href="//vapour-apps.com" target="_blank">VapourApps</a> | <a href="mailto:support@vapour-apps.com">support@vapour-apps.com</a>
+                </div>
             </div>
         );
     }
 }
 
-class Notification extends Component {
+/*class Notification extends Component {
   constructor (props) {
     super(props);
     this.state = {
@@ -291,8 +369,8 @@ class Notification extends Component {
     if(this.state.newNotification) {
       classname += ' notification'
     }
-    // console.log("notifications", this.props.notifications);
-    // console.log("newNotifications", this.props.newNotifications);
+    console.log("notifications", this.props.notifications);
+    console.log("newNotifications", this.props.newNotifications);
     return (
       <Bootstrap.Nav pullRight>
         <span style={{position: 'relative'}}>
@@ -317,10 +395,12 @@ class Notification extends Component {
     )
   }
 }
+*/
 
-const NotificationRedux = connect(function(state) {
+/*const NotificationRedux = connect(function(state) {
     return {auth: state.auth, ...state.notifications}
 })(Notification);
+*/
 
 const styles = {
   popup: {

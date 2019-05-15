@@ -99,5 +99,14 @@
     "app" : {
         "consul_handle" : "apps/{app_name}",
         "name" : ""
+    }, 
+    "function_doc": {
+        "consul_handle" : "function_doc/{func_group}/{func_name}"
+    }, 
+    "app_integration" : {
+        "consul_handle" : "app_integration/{donor_app}/{receiver_app}"
+    },
+    "trigger" : {
+        "consul_handle" : "triggers/{event_name}/{trigger_id}"
     }
 }

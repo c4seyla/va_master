@@ -1,0 +1,39 @@
+[
+	{
+		"provider_name" : "va_os",
+		"driver_id" : "openstack", 
+		"steps" : [
+			{
+				"step_index" : -1,
+				"field_values" : {}
+			},
+			{
+				"step_index" : 0,
+				"field_values" :
+				{
+					"provider_name" : "va_os", 
+					"username" : "admin", 
+					"tenant" : "admin", 
+					"provider_ip" : "192.168.80.16:5000", 
+					"region" : "RegionOne", 
+					"password" : "zilxii4g2j", 
+					"location" : "Skopje"
+				}
+			},
+			{
+				"step_index" : 1, 
+				"field_values" : {
+					"sec_group" : "default|26811978-5201-41e5-8860-f71607928114", 
+					"network" : "public|9bd9a1c4-c46d-4976-b5a8-41c6c670bef2"
+				}
+			},
+			{
+				"step_index" : 2,
+				"field_values" : {
+					"size" : "va-medium", 
+					"image" : "debian-jessie"
+				}
+			}
+		]
+	}
+]

@@ -58,7 +58,9 @@ class ConsulStore(DataStore):
     @tornado.gen.coroutine
     def check_connection(self):
         try:
-            result = yield self.client.fetch('%s/v1/status/leader' % self.path)
+            url = '%s/v1/status/leader' % self.path
+            print ('Trying ', url)
+            result = yield self.client.fetch(url)
         except:
             raise tornado.gen.Return(False)
         raise tornado.gen.Return(result.code == 200 and result.body != '""')

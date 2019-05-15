@@ -8,6 +8,7 @@ from OpenSSL import crypto, SSL
 from socket import gethostname
 from pprint import pprint
 from time import gmtime, mktime
+import uuid
 
 #We use coloredlogs for limited prettier output. It may not be available for all terminals. 
 try:
@@ -27,10 +28,10 @@ def generate_keys(master_config, crt_path, key_path):
     cert.get_subject().O = "Master server"
     cert.get_subject().OU = "No organization"
     cert.get_subject().CN = gethostname()
-    cert.set_serial_number(1000)
+    cert.set_serial_number(int(uuid.uuid4()))
     cert.gmtime_adj_notBefore(0)
     cert.gmtime_adj_notAfter(10*365*24*60*60)
-    cert.set_issuer(cert.get_subject())
+    #cert.set_issuer(cert.get_subject())
     cert.set_pubkey(k)
     cert.sign(k, 'sha1')
 
@@ -51,10 +52,11 @@ def bootstrap(master_config):
     master_config.logger.info('Bootstrap initiated. ')
     app = httpserver.get_app(master_config)
     print ('Doing certs')
-    if None in (master_config.https_crt, master_config.https_key):
-        crt_path = os.path.join(master_config.data_path, 'https.crt')
-        key_path = os.path.join(master_config.data_path, 'https.key')
-        master_config.logger.info('No certificate found, will generate at %s' % (master_config.data_path))
+    if True: 
+#    if None in (master_config.https_crt, master_config.https_key):
+        crt_path = os.path.join(master_config.ssl_folder, 'https.crt')
+        key_path = os.path.join(master_config.ssl_folder, 'https.key')
+        master_config.logger.info('No certificate found, will generate at %s' % (master_config.ssl_folder))
 
         try:
             with open(crt_path):

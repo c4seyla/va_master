@@ -26,8 +26,9 @@ class Login extends Component {
         me.props.dispatch({type: 'LOGIN_START'});
         Network.post('/api/login', null, data).done(function(d) {
             setTimeout(function () {
+                //console.log(d);
                 me.props.dispatch({type: 'LOGIN_GOOD', token: d.token,
-                    username: data.username});
+                    username: data.username, userType: d.user_type});
             }, 300);
         }).fail(function(xhr) {
             setTimeout(function () {

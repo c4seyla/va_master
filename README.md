@@ -6,7 +6,7 @@ This is the core project of VapourApps, the master which contains:
 
 ## Installing in production
 Requirements:
-* Debian Server 8 or any derivative (such as Ubuntu Server)
+* Debian Server 9 or any derivative (such as Ubuntu Server)
 * Unbound ports: tcp/80, tcp/443, tcp/8600, tcp/8500, tcp/8400, tcp/8300
 * Python 2.7, pip, setuptools
 
