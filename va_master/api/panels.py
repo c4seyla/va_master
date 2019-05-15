@@ -421,19 +421,6 @@ def get_panels_stats(handler, dash_user):
     result = {'providers' : len(providers), 'servers' : len(servers), 'services' : serv, 'vpn' : len(vpn['users']), 'apps' : len(states), "integrations" : len(integrations)}
     raise tornado.gen.Return(result)
 
-<<<<<<< HEAD
-@tornado.gen.coroutine
-def get_panels(handler, dash_user):
-    """Returns all panels for the logged in user. """
-    datastore_handler = handler.datastore_handler
-    panels = yield list_panels(datastore_handler, dash_user)
-
-    panels.sort(key = lambda x: x.get('sort_key', ''))
-
-    raise tornado.gen.Return(panels)
-=======
->>>>>>> 42392eb79faf1844094694b80ebfbca887e25683
-
 @tornado.gen.coroutine
 def get_panel_for_user(handler, panel, server_name, dash_user, args = [], kwargs = {}):
     """
@@ -469,36 +456,17 @@ def get_panel_for_user(handler, panel, server_name, dash_user, args = [], kwargs
     if not kwargs: 
         kwargs = {x : handler.data[x] for x in handler.data if x not in ignored_kwargs}
 
-<<<<<<< HEAD
-=======
-    if not dash_user['type'] == 'admin': 
-        panel_func = [x for x in dash_user.get('functions', []) if  x.get('func_path', '') == panel]
-        if not panel_func: 
-            raise Exception("User tried to open panel " + str(panel) + " but it is not in their allowed functions. ")
-
-        panel_func = panel_func[0]
-        kwargs.update(panel_func.get('predefined_arguments', {}))
-
->>>>>>> 42392eb79faf1844094694b80ebfbca887e25683
     action = 'get_panel'
     if type(args) != list and args: 
         args = [args]
     args = [panel] + args
     
     server = yield datastore_handler.get_object(object_type = 'server', server_name = server_name)
-<<<<<<< HEAD
-=======
-
->>>>>>> 42392eb79faf1844094694b80ebfbca887e25683
     if server.get('app_type', 'salt') == 'salt':
         state = get_minion_role(server_name) 
         state = yield datastore_handler.get_state(name = state)
         args = [state['module']] + args
 
-<<<<<<< HEAD
-=======
-    print ('Will get salt with ', kwargs)
->>>>>>> 42392eb79faf1844094694b80ebfbca887e25683
     panel  = yield panel_action_execute(handler, server_name, action, args, dash_user, kwargs = kwargs, module = 'va_utils')
     raise tornado.gen.Return(panel)
 
