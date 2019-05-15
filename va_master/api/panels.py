@@ -348,19 +348,23 @@ def get_panel_for_user(handler, panel, server_name, dash_user, args = [], provid
 
     datastore_handler = handler.datastore_handler
     user_panels = yield list_panels(datastore_handler, dash_user)
-    state = get_minion_role(server_name) 
     #This is usually for get requests. Any arguments in the url that are not arguments of this function are assumed to be keyword arguments for salt.
     #TODO Also this is pretty shabby, and I need to find a better way to make GET salt requests work. 
     ignored_kwargs = ['datastore', 'handler', 'datastore_handler', 'drivers_handler', 'panel', 'instance_name', 'dash_user', 'method', 'server_name', 'path', 'args']
     if not kwargs: 
         kwargs = {x : handler.data[x] for x in handler.data if x not in ignored_kwargs}
 
-    state = yield datastore_handler.get_state(name = state)
     action = 'get_panel'
     if type(args) != list and args: 
         args = [args]
     args = [panel] + args
-    args = [state['module']] + args
+    
+    server = yield datastore_handler.get_object(object_type = 'server', server_name = server_name)
+    if server.get('app_type', 'salt') == 'salt':
+        state = get_minion_role(server_name) 
+        state = yield datastore_handler.get_state(name = state)
+        args = [state['module']] + args
+
     panel  = yield panel_action_execute(handler, server_name, action, args, dash_user, kwargs = kwargs, module = 'va_utils')
     raise tornado.gen.Return(panel)
 
