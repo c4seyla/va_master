@@ -14,7 +14,7 @@ Requirements:
 
 ```bash
 curl -sL https://deb.nodesource.com/setup_6.x | sudo -E bash -
-sudo apt-get update && sudo apt-get install -y build-essential python-dev libssl-dev libffi-dev libzmq-dev unzip supervisor curl python-libvirt nodejs xorriso pythpon-setuptools
+sudo apt-get update && sudo apt-get install -y build-essential python-dev libssl-dev libffi-dev libzmq3-dev unzip supervisor curl python-libvirt nodejs xorriso python-setuptools
 sudo easy_install pip
 ```
 
